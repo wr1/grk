@@ -20,7 +20,7 @@ ROLES = {
     "documentation-specialist": "you are an expert in writing documentation",
 }
 
-def call_grok(file_content: str, prompt: str, model: str, api_key: str, system_message: str) -> str:
+def call_grok(file_content: str, prompt: str, model: str, api_key: str, system_message: str, temperature: float = 0) -> str:
     """Call Grok API with content and prompt."""
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     payload = {
@@ -29,8 +29,8 @@ def call_grok(file_content: str, prompt: str, model: str, api_key: str, system_m
             {"role": "system", "content": system_message},
             {"role": "user", "content": file_content + "\n" + prompt},
         ],
-        "stream":False,
-        "temperature":0,
+        "stream": False,
+        "temperature": temperature,  # Use provided temperature
     }
     try:
         response = requests.post(API_URL, json=payload, headers=headers)
@@ -59,35 +59,40 @@ def create_default_config():
                 "role": "python-programmer",
                 "output": "output.txt",
                 "json_out": "/tmp/grk_default_output.json",
-                "prompt_prepend": ""
+                "prompt_prepend": "",
+                "temperature": 0  # Added temperature option
             },
             "py": {
                 "model": "grok-3-mini-fast",
                 "role": "python-programmer",
                 "output": "output.txt",
                 "json_out": "/tmp/grk_py_output.json",
-                "prompt_prepend": ""
+                "prompt_prepend": "",
+                "temperature": 0  # Added temperature option
             },
             "doc": {
                 "model": "grok-3",
                 "role": "documentation-specialist",
                 "output": "output.txt",
                 "json_out": "/tmp/grk_doc_output.json",
-                "prompt_prepend": ""
+                "prompt_prepend": "",
+                "temperature": 0.7  # Added temperature option
             },
             "law": {
                 "model": "grok-3-fast",
                 "role": "senior lawyer/legal scholar",
                 "output": "output.txt",
                 "json_out": "/tmp/grk_law_output.json",
-                "prompt_prepend": "write concise legal argumentation, prefer latex, use the cenum environment for continuous numbering throughout the document. "
+                "prompt_prepend": "write concise legal argumentation, prefer latex, use the cenum environment for continuous numbering throughout the document. ",
+                "temperature": 0.5  # Added temperature option
             },
             "psy": {
                 "model": "grok-3",
                 "role": "senior psychologist",
                 "output": "output.txt",
                 "json_out": "/tmp/grk_psy_output.json",
-                "prompt_prepend": """use standard psychological argumentation, write concise, use established psychological concepts from ICD10 and DSM5, use latex, assume cenum environment is available for continous numbering."""
+                "prompt_prepend": """use standard psychological argumentation, write concise, use established psychological concepts from ICD10 and DSM5, use latex, assume cenum environment is available for continous numbering.""",
+                "temperature": 0.5  # Added temperature option
             },
         }
     }
@@ -128,6 +133,7 @@ def run(file: str, prompt: str, profile: str = "default"):
     role_from_config = config.get("role", "python-programmer")
     role_used = role_from_config  # Use role from config only
     prompt_prepend = config.get("prompt_prepend", "")
+    temperature = config.get("temperature", 0)  # Added temperature from config
 
     # API key must be from environment variable
     api_key = os.environ.get("XAI_API_KEY")
@@ -143,16 +149,18 @@ def run(file: str, prompt: str, profile: str = "default"):
     full_prompt = prompt_prepend + prompt
 
     console = Console()  # Initialize rich console for visualization
-    # Rich formatted message for profile parameters, file, and prompt
-    console.print(
-        f"[bold green]Running grk[/bold green] with profile '[bold blue]{profile}[/bold blue]', "
-        f"model '[yellow]{model_used}[/yellow]', and role '[purple]{role_used}[/purple]' "
-        f"on file '[cyan]{file}[/cyan]' and prompt '[italic]{full_prompt}[/italic]'"
-    )
+    # Rich formatted message for profile parameters, file, and prompt, now multiline
+    console.print("[bold green]Running grk[/bold green] with the following settings:")
+    console.print(f"  Profile: [bold blue]{profile}[/bold blue]")
+    console.print(f"  Model: [yellow]{model_used}[/yellow]")
+    console.print(f"  Role: [purple]{role_used}[/purple]")
+    console.print(f"  File: [cyan]{file}[/cyan]")
+    console.print(f"  Prompt: [italic]{full_prompt}[/italic]")
+    console.print(f"  Temperature: [red]{temperature}[/red]")
 
     with console.status("[bold green]Calling Grok API...[/bold green]"):  # Show spinner during API call
         start_time = time.time()  # Record start time for API call
-        response = call_grok(file_content, full_prompt, model_used, api_key, system_message)
+        response = call_grok(file_content, full_prompt, model_used, api_key, system_message, temperature)
         end_time = time.time()  # Record end time
         wait_time = end_time - start_time  # Calculate wait time
     click.echo(f"API call completed in {wait_time:.2f} seconds.")  # Print wait time

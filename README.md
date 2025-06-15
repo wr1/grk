@@ -24,23 +24,26 @@
  ```yaml
  profiles:
    default:
-     model: grok-3
+     model: grok-3-mini-fast
      role: python-programmer
      output: output.txt
      json_out: output.json
      prompt_prepend: "Process this cfold file:\n"
+     temperature: 0  # New option for API temperature
    python:
-     model: grok-3
+     model: grok-3-mini-fast
      role: python-programmer
      output: output.txt
      json_out: output.json
      prompt_prepend: "Process this cfold file:\n"
+     temperature: 0  # New option for API temperature
    docs:
      model: grok-3
      role: documentation-specialist
      output: output.txt
      json_out: output.json
      prompt_prepend: "Process this cfold file:\n"
+     temperature: 0.7  # New option for API temperature
  ```
  
  ## Usage
@@ -62,4 +65,4 @@
  ## Documentation
  
  For detailed documentation, visit our [MkDocs site](./docs/index.md) or run `mkdocs serve` locally after installing dependencies with `uv add mkdocs mkdocs-material`.
-```
+
