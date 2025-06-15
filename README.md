@@ -47,11 +47,11 @@
  
  ```bash
  grk init
- grk run <profile> <input_file> <prompt>
+ grk run <input_file> <prompt> [-p <profile>]
  ```
  
  For example:
- grk run python input.txt "Process this cfold"
+ grk run input.txt "Process this cfold" -p python
  
  All settings are governed by the specified profile in .grkrc. If no .grkrc exists, it uses the default profile.
  
@@ -62,3 +62,4 @@
  ## Documentation
  
  For detailed documentation, visit our [MkDocs site](./docs/index.md) or run `mkdocs serve` locally after installing dependencies with `uv add mkdocs mkdocs-material`.
+```

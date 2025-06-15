@@ -7,6 +7,8 @@ from .config import load_config
 from ruamel.yaml import YAML
 import time  # Added for timing the API call
 from rich.console import Console  # Added for terminal visualization
+from rich.syntax import Syntax  # Added for YAML syntax highlighting
+from io import StringIO  # Added for dumping YAML to string
 
 API_URL = "https://api.x.ai/v1/chat/completions"
 
@@ -27,6 +29,8 @@ def call_grok(file_content: str, prompt: str, model: str, api_key: str, system_m
             {"role": "system", "content": system_message},
             {"role": "user", "content": file_content + "\n" + prompt},
         ],
+        "stream":False,
+        "temperature":0,
     }
     try:
         response = requests.post(API_URL, json=payload, headers=headers)
@@ -112,10 +116,10 @@ def main():
     pass
 
 @main.command()
-@click.argument("profile", default="default")
 @click.argument("file", type=click.Path(exists=True, dir_okay=False))
 @click.argument("prompt")
-def run(profile: str, file: str, prompt: str):
+@click.option("-p", "--profile", default="default", help="The profile to use (e.g., default, py, doc, law, psy)")
+def run(file: str, prompt: str, profile: str = "default"):
     """Run the Grok LLM processing using the specified profile."""
     config = load_config(profile)  # Load config; if no .grkrc, returns {}
     output_file = config.get("output", "output.txt")  # Use config or default
@@ -138,9 +142,14 @@ def run(profile: str, file: str, prompt: str):
     system_message = ROLES.get(role_used, ROLES["python-programmer"])
     full_prompt = prompt_prepend + prompt
 
-    click.echo(f"Running grk with profile '{profile}', model '{model_used}', and role '{role_used}' on file {file} and prompt '{full_prompt}'")
-    
     console = Console()  # Initialize rich console for visualization
+    # Rich formatted message for profile parameters, file, and prompt
+    console.print(
+        f"[bold green]Running grk[/bold green] with profile '[bold blue]{profile}[/bold blue]', "
+        f"model '[yellow]{model_used}[/yellow]', and role '[purple]{role_used}[/purple]' "
+        f"on file '[cyan]{file}[/cyan]' and prompt '[italic]{full_prompt}[/italic]'"
+    )
+
     with console.status("[bold green]Calling Grok API...[/bold green]"):  # Show spinner during API call
         start_time = time.time()  # Record start time for API call
         response = call_grok(file_content, full_prompt, model_used, api_key, system_message)
@@ -162,7 +171,7 @@ def run(profile: str, file: str, prompt: str):
 
 @main.command()
 def list():
-    """List the configurations from .grkrc."""
+    """List the configurations from .grkrc with YAML syntax highlighting."""
     config_file = Path(".grkrc")
     if not config_file.exists():
         click.echo("No .grkrc file found in the current directory.")
@@ -173,11 +182,13 @@ def list():
             full_config = yaml.load(f) or {}
         profiles = full_config.get("profiles", {})
         if profiles:
-            click.echo("Profiles in .grkrc:")
-            for profile_name, profile_data in profiles.items():
-                click.echo(f"- Profile: {profile_name}")
-                for key, value in profile_data.items():
-                    click.echo(f"  {key}: {value}")
+            yaml_dumper = YAML()
+            with StringIO() as stream:  # Use StringIO to get YAML as string
+                yaml_dumper.dump({"profiles": profiles}, stream)
+                yaml_str = stream.getvalue()
+            syntax = Syntax(yaml_str, "yaml", theme="monokai", line_numbers=True)  # Highlight YAML
+            console = Console()
+            console.print(syntax)  # Display with highlighting
         else:
             click.echo("No profiles defined in .grkrc.")
     except Exception as e:
