@@ -1,9 +1,10 @@
 import click
 import json
 import requests
+import os
 from pathlib import Path
-import yaml
 from .config import load_config
+from ruamel.yaml import YAML
 
 API_URL = "https://api.x.ai/v1/chat/completions"
 
@@ -33,86 +34,110 @@ def call_grok(file_content: str, prompt: str, model: str, api_key: str, system_m
         raise click.ClickException(f"API request failed: {str(e)}")
 
 def create_default_config():
-    """Create default .grkrc file with profiles."""
+    """Create default .grkrc file with profiles, preserving old profiles with _old suffix."""
+    config_file = Path(".grkrc")
+    old_profiles = {}
+    if config_file.exists():
+        try:
+            yaml = YAML()
+            with config_file.open("r") as f:
+                existing_config = yaml.load(f) or {}
+            old_profiles = existing_config.get("profiles", {})
+        except Exception as e:
+            click.echo(f"Warning: Failed to load existing .grkrc: {str(e)}")
+
     default_config = {
         "profiles": {
             "default": {
+                "model": "grok-3-mini-fast",
+                "role": "python-programmer",
+                "output": "output.txt",
+                "json_out": "/tmp/grk_default_output.json",
+                "prompt_prepend": ""
+            },
+            "py": {
                 "model": "grok-3",
                 "role": "python-programmer",
                 "output": "output.txt",
-                "json_out": "output.json",
-                "prompt_prepend": "Process this cfold file:\n"
+                "json_out": "/tmp/grk_output.json",
+                "prompt_prepend": ""
             },
-            "python": {
-                "model": "grok-3",
-                "role": "python-programmer",
-                "output": "output.txt",
-                "json_out": "output.json",
-                "prompt_prepend": "Process this cfold file:\n"
-            },
-            "docs": {
+            "doc": {
                 "model": "grok-3",
                 "role": "documentation-specialist",
                 "output": "output.txt",
                 "json_out": "output.json",
-                "prompt_prepend": "Process this cfold file:\n"
+                "prompt_prepend": ""
             },
         }
     }
+
+    # Add old profiles with _old suffix
+    for profile_name, profile_data in old_profiles.items():
+        if profile_name not in default_config["profiles"]:
+            default_config["profiles"][f"{profile_name}_old"] = profile_data
+        else:
+            click.echo(f"Profile '{profile_name}' already exists in default config, using _old suffix for the existing one.")
+            default_config["profiles"][f"{profile_name}_old"] = profile_data
+
     try:
+        yaml = YAML()
         with open(".grkrc", "w") as f:
             yaml.dump(default_config, f)
         click.echo("Default .grkrc with profiles created successfully.")
     except Exception as e:
         click.echo(f"Failed to create .grkrc: {str(e)}")
 
-@click.group()
+@click.group(context_settings={"help_option_names": ["-h", "--help"]})
 def main():
     """CLI tool to interact with Grok LLM."""
     pass
 
 @main.command()
-def init():
-    """Initialize .grkrc with default profiles."""
-    create_default_config()
-
-@main.command()
+@click.argument("profile", default="default")
 @click.argument("file", type=click.Path(exists=True, dir_okay=False))
 @click.argument("prompt")
-@click.option("-o", "--output", help="Output file for response")
-@click.option("-j", "--json-out", help="Output JSON file")
-@click.option("-m", "--model", help="Grok model to use")
-@click.option("-k", "--api-key", required=True, envvar="XAI_API_KEY", help="xAI API key")
-@click.option("-r", "--role", type=click.Choice(list(ROLES.keys()), case_sensitive=False), help="System role (overrides profile)")
-@click.option("-p", "--profile", default="default", help="Profile to use from .grkrc")
-def run(file: str, prompt: str, output: str, json_out: str, model: str, api_key: str, role: str, profile: str):
-    """Run the Grok LLM processing."""
-    config = load_config(profile)
-    output = output or config.get("output", "output.txt")
-    json_out = json_out or config.get("json_out", "output.json")
-    model = model or config.get("model", "grok-3-mini-fast")
+def run(profile: str, file: str, prompt: str):
+    """Run the Grok LLM processing using the specified profile."""
+    config = load_config(profile)  # Load config; if no .grkrc, returns {}
+    output_file = config.get("output", "output.txt")  # Use config or default
+    json_out_file = config.get("json_out", "output.json")
+    model_used = config.get("model", "grok-3-mini-fast")
     role_from_config = config.get("role", "python-programmer")
-    role = role or role_from_config  # CLI role overrides profile role
     prompt_prepend = config.get("prompt_prepend", "")
+
+    # API key must be from environment variable
+    api_key = os.environ.get("XAI_API_KEY")
+    if not api_key:
+        raise click.ClickException("API key is required via XAI_API_KEY environment variable.")
+
     try:
         file_content = Path(file).read_text()
     except Exception as e:
         raise click.ClickException(f"Failed to read file: {str(e)}")
-    system_message = ROLES.get(role, ROLES["python-programmer"])
+
+    system_message = ROLES.get(role_from_config, ROLES["python-programmer"])
     full_prompt = prompt_prepend + prompt
-    click.echo(f"Running grk with profile '{profile}', model {model}, and role '{role}' on file {file} and prompt {full_prompt}")
-    response = call_grok(file_content, full_prompt, model, api_key, system_message)
+
+    click.echo(f"Running grk with profile '{profile}', model '{model_used}', and role '{role_from_config}' on file {file} and prompt '{full_prompt}'")
+    response = call_grok(file_content, full_prompt, model_used, api_key, system_message)
+
     try:
-        Path(output).write_text(response)
-        with Path(json_out).open("w") as f:
+        Path(output_file).write_text(response)
+        with Path(json_out_file).open("w") as f:
             json.dump(
-                {"input": file_content, "prompt": full_prompt, "response": response, "used_role": role, "used_profile": profile},
+                {"input": file_content, "prompt": full_prompt, "response": response, "used_role": role_from_config, "used_profile": profile},
                 f,
                 indent=2,
             )
-        click.echo(f"Response saved to {output} and {json_out}")
+        click.echo(f"Response saved to {output_file} and {json_out_file}")
     except Exception as e:
         raise click.ClickException(f"Failed to write output: {str(e)}")
+
+@main.command()
+def init():
+    """Initialize .grkrc with default profiles."""
+    create_default_config()
 
 if __name__ == "__main__":
     main()

@@ -5,7 +5,7 @@
  ## Installation
  
  ```bash
- uv add click requests pyyaml  # Use uv for installation
+ uv add click requests ruamel.yaml
  ```
  
  ### Fish Shell Completions
@@ -43,25 +43,22 @@
      prompt_prepend: "Process this cfold file:\n"
  ```
  
- Command-line options override profile values.
- 
  ## Usage
  
  ```bash
  grk init
- grk run input.txt "Process this cfold" -o output.txt -j full.json -m grok-3 -k your_api_key -r python-programmer -p python
+ grk run <profile> <input_file> <prompt>
  ```
  
- ### Options
+ For example:
+ grk run python input.txt "Process this cfold"
  
- These options apply to the `grk run` subcommand:
- - `-o/--output`: Specify output file (default: profile value or `output.txt`)
- - `-j/--json-out`: Specify JSON output file (default: profile value or `output.json`)
- - `-m/--model`: Grok model (default: profile value or `grok-3-mini-fast`)
- - `-k/--api-key`: xAI API key (or set `XAI_API_KEY` env var)
- - `-r/--role`: System role (overrides profile role; e.g., `python-programmer`)
- - `-p/--profile`: Profile to use (e.g., `default`, `python`, `docs`; default: `default`)
+ All settings are governed by the specified profile in .grkrc. If no .grkrc exists, it uses the default profile.
  
  ## Environment Variables
  
  - `XAI_API_KEY`: xAI API key (required)
+ 
+ ## Documentation
+ 
+ For detailed documentation, visit our [MkDocs site](./docs/index.md) or run `mkdocs serve` locally after installing dependencies with `uv add mkdocs mkdocs-material`.
