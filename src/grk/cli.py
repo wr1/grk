@@ -6,6 +6,7 @@ from pathlib import Path
 from .config import load_config
 from ruamel.yaml import YAML
 import time  # Added for timing the API call
+from rich.console import Console  # Added for terminal visualization
 
 API_URL = "https://api.x.ai/v1/chat/completions"
 
@@ -114,15 +115,14 @@ def main():
 @click.argument("profile", default="default")
 @click.argument("file", type=click.Path(exists=True, dir_okay=False))
 @click.argument("prompt")
-@click.option("--role", default=None, help="Override the role from the config (e.g., python-programmer).")
-def run(profile: str, file: str, prompt: str, role: str = None):
+def run(profile: str, file: str, prompt: str):
     """Run the Grok LLM processing using the specified profile."""
     config = load_config(profile)  # Load config; if no .grkrc, returns {}
     output_file = config.get("output", "output.txt")  # Use config or default
     json_out_file = config.get("json_out", "output.json")
     model_used = config.get("model", "grok-3-mini-fast")
     role_from_config = config.get("role", "python-programmer")
-    role_used = role or role_from_config  # Use provided role or from config
+    role_used = role_from_config  # Use role from config only
     prompt_prepend = config.get("prompt_prepend", "")
 
     # API key must be from environment variable
@@ -140,10 +140,12 @@ def run(profile: str, file: str, prompt: str, role: str = None):
 
     click.echo(f"Running grk with profile '{profile}', model '{model_used}', and role '{role_used}' on file {file} and prompt '{full_prompt}'")
     
-    start_time = time.time()  # Record start time for API call
-    response = call_grok(file_content, full_prompt, model_used, api_key, system_message)
-    end_time = time.time()  # Record end time
-    wait_time = end_time - start_time  # Calculate wait time
+    console = Console()  # Initialize rich console for visualization
+    with console.status("[bold green]Calling Grok API...[/bold green]"):  # Show spinner during API call
+        start_time = time.time()  # Record start time for API call
+        response = call_grok(file_content, full_prompt, model_used, api_key, system_message)
+        end_time = time.time()  # Record end time
+        wait_time = end_time - start_time  # Calculate wait time
     click.echo(f"API call completed in {wait_time:.2f} seconds.")  # Print wait time
 
     try:
