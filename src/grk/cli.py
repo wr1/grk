@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from .config import load_config
 from ruamel.yaml import YAML
+import time  # Added for timing the API call
 
 API_URL = "https://api.x.ai/v1/chat/completions"
 
@@ -113,13 +114,15 @@ def main():
 @click.argument("profile", default="default")
 @click.argument("file", type=click.Path(exists=True, dir_okay=False))
 @click.argument("prompt")
-def run(profile: str, file: str, prompt: str):
+@click.option("--role", default=None, help="Override the role from the config (e.g., python-programmer).")
+def run(profile: str, file: str, prompt: str, role: str = None):
     """Run the Grok LLM processing using the specified profile."""
     config = load_config(profile)  # Load config; if no .grkrc, returns {}
     output_file = config.get("output", "output.txt")  # Use config or default
     json_out_file = config.get("json_out", "output.json")
     model_used = config.get("model", "grok-3-mini-fast")
     role_from_config = config.get("role", "python-programmer")
+    role_used = role or role_from_config  # Use provided role or from config
     prompt_prepend = config.get("prompt_prepend", "")
 
     # API key must be from environment variable
@@ -132,23 +135,51 @@ def run(profile: str, file: str, prompt: str):
     except Exception as e:
         raise click.ClickException(f"Failed to read file: {str(e)}")
 
-    system_message = ROLES.get(role_from_config, ROLES["python-programmer"])
+    system_message = ROLES.get(role_used, ROLES["python-programmer"])
     full_prompt = prompt_prepend + prompt
 
-    click.echo(f"Running grk with profile '{profile}', model '{model_used}', and role '{role_from_config}' on file {file} and prompt '{full_prompt}'")
+    click.echo(f"Running grk with profile '{profile}', model '{model_used}', and role '{role_used}' on file {file} and prompt '{full_prompt}'")
+    
+    start_time = time.time()  # Record start time for API call
     response = call_grok(file_content, full_prompt, model_used, api_key, system_message)
+    end_time = time.time()  # Record end time
+    wait_time = end_time - start_time  # Calculate wait time
+    click.echo(f"API call completed in {wait_time:.2f} seconds.")  # Print wait time
 
     try:
         Path(output_file).write_text(response)
         with Path(json_out_file).open("w") as f:
             json.dump(
-                {"input": file_content, "prompt": full_prompt, "response": response, "used_role": role_from_config, "used_profile": profile},
+                {"input": file_content, "prompt": full_prompt, "response": response, "used_role": role_used, "used_profile": profile},
                 f,
                 indent=2,
             )
         click.echo(f"Response saved to {output_file} and {json_out_file}")
     except Exception as e:
         raise click.ClickException(f"Failed to write output: {str(e)}")
+
+@main.command()
+def list():
+    """List the configurations from .grkrc."""
+    config_file = Path(".grkrc")
+    if not config_file.exists():
+        click.echo("No .grkrc file found in the current directory.")
+        return
+    try:
+        yaml = YAML()
+        with config_file.open("r") as f:
+            full_config = yaml.load(f) or {}
+        profiles = full_config.get("profiles", {})
+        if profiles:
+            click.echo("Profiles in .grkrc:")
+            for profile_name, profile_data in profiles.items():
+                click.echo(f"- Profile: {profile_name}")
+                for key, value in profile_data.items():
+                    click.echo(f"  {key}: {value}")
+        else:
+            click.echo("No profiles defined in .grkrc.")
+    except Exception as e:
+        click.echo(f"Warning: Failed to load .grkrc: {str(e)}")
 
 @main.command()
 def init():
