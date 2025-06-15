@@ -1,3 +1,27 @@
+# [build-system]
+# requires = ["hatchling"]
+# build-backend = "hatchling.build"
+
+# [project]
+# name = "grk"
+# version = "0.1.1"
+# description = "CLI tool to push cfold to Grok LLM and save output"
+# authors = [{ name = "Your Name", email = "you@example.com" }]
+# requires-python = ">=3.10,<3.14"
+# readme = "README.md"
+# license = "MIT"
+# dependencies = [
+#     "click>=8.1.7,<9",
+#     "requests>=2.32.3,<3",
+#     "pyyaml>=6.0.2,<7",
+# ]
+
+# [project.scripts]
+# grk = "grk.cli:main"
+
+# [dependency-groups]
+# dev = ["pyinstaller>=6.13.0,<7"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -10,14 +34,15 @@ authors = [{ name = "Your Name", email = "you@example.com" }]
 requires-python = ">=3.10,<3.14"
 readme = "README.md"
 license = "MIT"
-dependencies = [
-    "click>=8.1.7,<9",
-    "requests>=2.32.3,<3",
-    "pyyaml>=6.0.2,<7",
-]
+dependencies = ["click>=8.1.7,<9", "requests>=2.32.3,<3", "pyyaml>=6.0.2,<7"]
 
 [project.scripts]
 grk = "grk.cli:main"
 
 [dependency-groups]
 dev = ["pyinstaller>=6.13.0,<7"]
+
+# Added section to fix the build error
+[tool.hatch.build.targets.wheel]
+packages = ["src/grk"]
+# Include the 'grk' package; adjust if your structure differs (e.g., ["src/grk"])

@@ -5,7 +5,7 @@
  ## Installation
  
  ```bash
- poetry install
+ uv add click requests pyyaml  # Use uv for installation
  ```
  
  ### Fish Shell Completions
@@ -19,33 +19,48 @@
  
  ## Configuration
  
- You can create a `.grkrc` YAML file in the current directory to set default options:
+ You can create a `.grkrc` YAML file in the current directory to set default options. It now supports multiple profiles.
  
  ```yaml
- model: grok-3
- role: python-programmer
- output: output.txt
- json_out: output.json
- prompt_prepend: "Process this cfold file:\n"
+ profiles:
+   default:
+     model: grok-3
+     role: python-programmer
+     output: output.txt
+     json_out: output.json
+     prompt_prepend: "Process this cfold file:\n"
+   python:
+     model: grok-3
+     role: python-programmer
+     output: output.txt
+     json_out: output.json
+     prompt_prepend: "Process this cfold file:\n"
+   docs:
+     model: grok-3
+     role: documentation-specialist
+     output: output.txt
+     json_out: output.json
+     prompt_prepend: "Process this cfold file:\n"
  ```
  
- Command-line options override `.grkrc` values.
+ Command-line options override profile values.
  
  ## Usage
  
  ```bash
  grk init
- grk run input.txt "Process this cfold" -o output.txt -j full.json -m grok-3 -k your_api_key -r python-programmer
+ grk run input.txt "Process this cfold" -o output.txt -j full.json -m grok-3 -k your_api_key -r python-programmer -p python
  ```
  
  ### Options
  
  These options apply to the `grk run` subcommand:
- - `-o/--output`: Specify output file (default: `output.txt` or `.grkrc` value)
- - `-j/--json-out`: Specify JSON output file (default: `output.json` or `.grkrc` value)
- - `-m/--model`: Grok model (default: `grok-3-mini` or `.grkrc` value)
+ - `-o/--output`: Specify output file (default: profile value or `output.txt`)
+ - `-j/--json-out`: Specify JSON output file (default: profile value or `output.json`)
+ - `-m/--model`: Grok model (default: profile value or `grok-3-mini-fast`)
  - `-k/--api-key`: xAI API key (or set `XAI_API_KEY` env var)
- - `-r/--role`: System role (default: `python-programmer` or `.grkrc` value; options: `python-programmer`, `lawyer`, `psychologist`)
+ - `-r/--role`: System role (overrides profile role; e.g., `python-programmer`)
+ - `-p/--profile`: Profile to use (e.g., `default`, `python`, `docs`; default: `default`)
  
  ## Environment Variables
  
