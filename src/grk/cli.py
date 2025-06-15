@@ -79,7 +79,7 @@ def run(file: str, prompt: str, output: str, json_out: str, model: str, api_key:
         raise click.ClickException(f"Failed to read file: {str(e)}")
     system_message = ROLES.get(role, ROLES["python-programmer"])
     full_prompt = prompt_prepend + prompt
-    click.echo(f"Running grk with model {model} and prompt {full_prompt}")
+    click.echo(f"Running grk with model {model} on file {file} and prompt {full_prompt}")
     response = call_grok(file_content, full_prompt, model, api_key, system_message)
     try:
         Path(output).write_text(response)

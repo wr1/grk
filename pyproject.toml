@@ -1,24 +1,23 @@
-[tool.poetry]
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
 name = "grk"
-version = "0.1.0"
+version = "0.1.1"
 description = "CLI tool to push cfold to Grok LLM and save output"
-authors = ["Your Name <you@example.com>"]
-license = "MIT"
+authors = [{ name = "Your Name", email = "you@example.com" }]
+requires-python = ">=3.10,<3.14"
 readme = "README.md"
+license = "MIT"
+dependencies = [
+    "click>=8.1.7,<9",
+    "requests>=2.32.3,<3",
+    "pyyaml>=6.0.2,<7",
+]
 
-
-[tool.poetry.dependencies]
-python = ">=3.10,<3.14"
-click = "^8.1.7"
-requests = "^2.32.3"
-pyyaml = "^6.0.2"
-
-[tool.poetry.scripts]
+[project.scripts]
 grk = "grk.cli:main"
 
-[tool.poetry.group.dev.dependencies]
-pyinstaller = "^6.13.0"
-
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+[dependency-groups]
+dev = ["pyinstaller>=6.13.0,<7"]
