@@ -34,7 +34,7 @@ def call_grok(file_content: str, prompt: str, model: str, api_key: str, system_m
         raise click.ClickException(f"API request failed: {str(e)}")
 
 def create_default_config():
-    """Create default .grkrc file with profiles, preserving old profiles with _old suffix."""
+    """Create default .grkrc file with profiles, preserving old profiles with _old suffix if different."""
     config_file = Path(".grkrc")
     old_profiles = {}
     if config_file.exists():
@@ -56,29 +56,45 @@ def create_default_config():
                 "prompt_prepend": ""
             },
             "py": {
-                "model": "grok-3",
+                "model": "grok-3-mini-fast",
                 "role": "python-programmer",
                 "output": "output.txt",
-                "json_out": "/tmp/grk_output.json",
+                "json_out": "/tmp/grk_py_output.json",
                 "prompt_prepend": ""
             },
             "doc": {
                 "model": "grok-3",
                 "role": "documentation-specialist",
                 "output": "output.txt",
-                "json_out": "output.json",
+                "json_out": "/tmp/grk_doc_output.json",
                 "prompt_prepend": ""
+            },
+            "law": {
+                "model": "grok-3-fast",
+                "role": "senior lawyer/legal scholar",
+                "output": "output.txt",
+                "json_out": "/tmp/grk_law_output.json",
+                "prompt_prepend": "write concise legal argumentation, prefer latex, use the cenum environment for continuous numbering throughout the document. "
+            },
+            "psy": {
+                "model": "grok-3",
+                "role": "senior psychologist",
+                "output": "output.txt",
+                "json_out": "/tmp/grk_psy_output.json",
+                "prompt_prepend": """use standard psychological argumentation, write concise, use established psychological concepts from ICD10 and DSM5, use latex, assume cenum environment is available for continous numbering."""
             },
         }
     }
 
-    # Add old profiles with _old suffix
+    # Add old profiles with _old suffix only if they differ from the new ones
     for profile_name, profile_data in old_profiles.items():
-        if profile_name not in default_config["profiles"]:
-            default_config["profiles"][f"{profile_name}_old"] = profile_data
+        if profile_name in default_config["profiles"]:
+            if profile_data != default_config["profiles"][profile_name]:
+                default_config["profiles"][f"{profile_name}_old"] = profile_data
+                click.echo(f"Profile '{profile_name}' differs from default, saved old as '{profile_name}_old'.")
         else:
-            click.echo(f"Profile '{profile_name}' already exists in default config, using _old suffix for the existing one.")
             default_config["profiles"][f"{profile_name}_old"] = profile_data
+            click.echo(f"Profile '{profile_name}' not in default config, saved as '{profile_name}_old'.")
 
     try:
         yaml = YAML()

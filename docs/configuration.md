@@ -38,5 +38,5 @@
  grk init
  ```
  
- If a `.grkrc` file already exists, existing profiles will be preserved with an `_old` suffix.
-```
+ If a `.grkrc` file already exists, existing profiles will be preserved with an `_old` suffix if they differ from the default profiles.
+ ```

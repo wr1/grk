@@ -2,8 +2,7 @@ import pytest
 import click
 from click.testing import CliRunner
 from pathlib import Path
-import os
-from grk.cli import main, run, init, call_grok
+from grk.cli import main, call_grok
 import requests
 
 @pytest.fixture

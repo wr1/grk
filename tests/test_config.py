@@ -1,4 +1,3 @@
-import pytest
 from pathlib import Path
 from ruamel.yaml import YAML
 from grk.config import load_config
