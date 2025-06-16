@@ -5,16 +5,7 @@
  ## Installation
  
  ```bash
- uv add click requests ruamel.yaml
- ```
- 
- ### Fish Shell Completions
- 
- To enable command-line completions for `grk` in Fish shell:
- 
- ```bash
- mkdir -p ~/.config/fish/completions
- cp completions/grk.fish ~/.config/fish/completions/
+ uv pip install . 
  ```
  
  ## Configuration
@@ -54,10 +45,32 @@
  ```
  
  For example:
- grk run input.txt "Process this cfold" -p python
+
+ ```bash
+ grk run input.txt "Process the instructions in this text file" -p python
+ ```
+
+All settings are governed by the specified profile in .grkrc. If no .grkrc exists, it uses the default profile.
  
- All settings are governed by the specified profile in .grkrc. If no .grkrc exists, it uses the default profile.
- 
+### Advanced use
+Chaining with [cfold](https://github.com/wr1/cfold) allows making whole codebase changes. 
+ ```bash
+ # fold the local python project into a text file
+ cfold fold -o folded_project.txt
+ # run instructions on the codebase
+ grk run folded_project.txt "change the CLI framework from argparse to click"  
+ # unfold the changes
+ cfold unfold output.txt
+ ```
+This can be wrapped into a shell function for convenient terminal use, for example in `fish`: 
+```fish 
+function g 
+  cfold fold -o folded_project.txt
+  grk run folded_project.txt $argv  
+  cfold unfold output.txt
+end
+```
+
  ## Environment Variables
  
  - `XAI_API_KEY`: xAI API key (required)
