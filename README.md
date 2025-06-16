@@ -18,21 +18,21 @@
      model: grok-3-mini-fast
      role: python-programmer
      output: output.txt
-     json_out: output.json
+     json_out: /tmp/grk_default_output.json
      prompt_prepend: "Process this cfold file:\n"
      temperature: 0  # New option for API temperature
    python:
      model: grok-3-mini-fast
      role: python-programmer
      output: output.txt
-     json_out: output.json
+     json_out: /tmp/grk_python_output.json
      prompt_prepend: "Process this cfold file:\n"
      temperature: 0  # New option for API temperature
    docs:
      model: grok-3
      role: documentation-specialist
      output: output.txt
-     json_out: output.json
+     json_out: /tmp/grk_docs_output.json
      prompt_prepend: "Process this cfold file:\n"
      temperature: 0.7  # New option for API temperature
  ```
