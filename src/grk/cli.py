@@ -1,4 +1,5 @@
 """CLI commands for interacting with Grok LLM."""
+
 import rich_click as click  # Use rich_click for colored help and output
 import json
 import requests
@@ -20,7 +21,15 @@ ROLES = {
     "documentation-specialist": "you are an expert in writing documentation",
 }
 
-def call_grok(file_content: str, prompt: str, model: str, api_key: str, system_message: str, temperature: float = 0) -> str:
+
+def call_grok(
+    file_content: str,
+    prompt: str,
+    model: str,
+    api_key: str,
+    system_message: str,
+    temperature: float = 0,
+) -> str:
     """Call Grok API with content and prompt."""
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     payload = {
@@ -38,6 +47,7 @@ def call_grok(file_content: str, prompt: str, model: str, api_key: str, system_m
         return response.json()["choices"][0]["message"]["content"]
     except requests.RequestException as e:
         raise click.ClickException(f"API request failed: {str(e)}")
+
 
 def create_default_config():
     """Create default .grkrc file with profiles, preserving old profiles with _old suffix if different."""
@@ -60,7 +70,7 @@ def create_default_config():
                 "output": "output.txt",
                 "json_out": "/tmp/grk_default_output.json",
                 "prompt_prepend": "",
-                "temperature": 0
+                "temperature": 0,
             },
             "py": {
                 "model": "grok-3-mini-fast",
@@ -68,7 +78,7 @@ def create_default_config():
                 "output": "output.txt",
                 "json_out": "/tmp/grk_py_output.json",
                 "prompt_prepend": "",
-                "temperature": 0
+                "temperature": 0,
             },
             "doc": {
                 "model": "grok-3",
@@ -76,7 +86,7 @@ def create_default_config():
                 "output": "output.txt",
                 "json_out": "/tmp/grk_doc_output.json",
                 "prompt_prepend": "",
-                "temperature": 0.7
+                "temperature": 0.7,
             },
             "law": {
                 "model": "grok-3-fast",
@@ -84,7 +94,7 @@ def create_default_config():
                 "output": "output.txt",
                 "json_out": "/tmp/grk_law_output.json",
                 "prompt_prepend": "write concise legal argumentation, prefer latex, use the cenum environment for continuous numbering throughout the document. ",
-                "temperature": 0.5
+                "temperature": 0.5,
             },
             "psy": {
                 "model": "grok-3",
@@ -92,7 +102,7 @@ def create_default_config():
                 "output": "output.txt",
                 "json_out": "/tmp/grk_psy_output.json",
                 "prompt_prepend": """use standard psychological argumentation, write concise, use established psychological concepts from ICD10 and DSM5, use latex, assume cenum environment is available for continous numbering.""",
-                "temperature": 0.5
+                "temperature": 0.5,
             },
         }
     }
@@ -102,10 +112,14 @@ def create_default_config():
         if profile_name in default_config["profiles"]:
             if profile_data != default_config["profiles"][profile_name]:
                 default_config["profiles"][f"{profile_name}_old"] = profile_data
-                click.echo(f"Profile '{profile_name}' differs from default, saved old as '{profile_name}_old'.")
+                click.echo(
+                    f"Profile '{profile_name}' differs from default, saved old as '{profile_name}_old'."
+                )
         else:
             default_config["profiles"][f"{profile_name}_old"] = profile_data
-            click.echo(f"Profile '{profile_name}' not in default config, saved as '{profile_name}_old'.")
+            click.echo(
+                f"Profile '{profile_name}' not in default config, saved as '{profile_name}_old'."
+            )
 
     try:
         yaml = YAML()
@@ -115,13 +129,15 @@ def create_default_config():
     except Exception as e:
         click.echo(f"Failed to create .grkrc: {str(e)}")
 
+
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 def main():
     """CLI tool to interact with Grok LLM."""
     pass
 
+
 @main.command()
-@click.option("-f", "--file", required=True, type=click.Path(exists=True, dir_okay=False), help="The input file to process")
+@click.argument("file", type=click.Path(exists=True, dir_okay=False))
 @click.argument("prompt")
 @click.option("-p", "--profile", default="default", help="The profile to use")
 def run(file: str, prompt: str, profile: str = "default"):
@@ -136,7 +152,9 @@ def run(file: str, prompt: str, profile: str = "default"):
 
     api_key = os.environ.get("XAI_API_KEY")
     if not api_key:
-        raise click.ClickException("API key is required via XAI_API_KEY environment variable.")
+        raise click.ClickException(
+            "API key is required via XAI_API_KEY environment variable."
+        )
 
     try:
         file_content = Path(file).read_text()
@@ -157,7 +175,9 @@ def run(file: str, prompt: str, profile: str = "default"):
 
     with console.status("[bold green]Calling Grok API...[/bold green]"):
         start_time = time.time()
-        response = call_grok(file_content, full_prompt, model_used, api_key, system_message, temperature)
+        response = call_grok(
+            file_content, full_prompt, model_used, api_key, system_message, temperature
+        )
         end_time = time.time()
         wait_time = end_time - start_time
     click.echo(f"API call completed in {wait_time:.2f} seconds.")
@@ -166,13 +186,20 @@ def run(file: str, prompt: str, profile: str = "default"):
         Path(output_file).write_text(response)
         with Path(json_out_file).open("w") as f:
             json.dump(
-                {"input": file_content, "prompt": full_prompt, "response": response, "used_role": role_from_config, "used_profile": profile},
+                {
+                    "input": file_content,
+                    "prompt": full_prompt,
+                    "response": response,
+                    "used_role": role_from_config,
+                    "used_profile": profile,
+                },
                 f,
                 indent=2,
             )
         click.echo(f"Response saved to {output_file} and {json_out_file}")
     except Exception as e:
         raise click.ClickException(f"Failed to write output: {str(e)}")
+
 
 @main.command()
 def list():
@@ -199,10 +226,12 @@ def list():
     except Exception as e:
         click.echo(f"Warning: Failed to load .grkrc: {str(e)}")
 
+
 @main.command()
 def init():
     """Initialize .grkrc with default profiles."""
     create_default_config()
+
 
 if __name__ == "__main__":
     main()
