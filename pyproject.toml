@@ -17,6 +17,8 @@ dependencies = [
     "requests>=2.32.3,<3",
     "ruamel.yaml>=0.17",
     "rich>=13.7.1",  # Added for terminal visualization
+    "pydantic>=2.6",  # Added for config validation and parsing
+    "rich-click>=1.7.0",  # Added for rich help output
 ]
 
 [project.scripts]

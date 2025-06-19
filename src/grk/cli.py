@@ -1,18 +1,18 @@
-import click
+"""CLI commands for interacting with Grok LLM."""
+import rich_click as click  # Use rich_click for colored help and output
 import json
 import requests
 import os
 from pathlib import Path
 from .config import load_config
 from ruamel.yaml import YAML
-import time  # Added for timing the API call
-from rich.console import Console  # Added for terminal visualization
-from rich.syntax import Syntax  # Added for YAML syntax highlighting
-from io import StringIO  # Added for dumping YAML to string
+import time
+from rich.console import Console
+from rich.syntax import Syntax
+from io import StringIO
 
 API_URL = "https://api.x.ai/v1/chat/completions"
 
-# Predefined roles with their system messages
 ROLES = {
     "python-programmer": "you are an expert python programmer, writing clean code",
     "lawyer": "you are an expert lawyer, providing legal advice",
@@ -30,7 +30,7 @@ def call_grok(file_content: str, prompt: str, model: str, api_key: str, system_m
             {"role": "user", "content": file_content + "\n" + prompt},
         ],
         "stream": False,
-        "temperature": temperature,  # Use provided temperature
+        "temperature": temperature,
     }
     try:
         response = requests.post(API_URL, json=payload, headers=headers)
@@ -60,7 +60,7 @@ def create_default_config():
                 "output": "output.txt",
                 "json_out": "/tmp/grk_default_output.json",
                 "prompt_prepend": "",
-                "temperature": 0  # Added temperature option
+                "temperature": 0
             },
             "py": {
                 "model": "grok-3-mini-fast",
@@ -68,7 +68,7 @@ def create_default_config():
                 "output": "output.txt",
                 "json_out": "/tmp/grk_py_output.json",
                 "prompt_prepend": "",
-                "temperature": 0  # Added temperature option
+                "temperature": 0
             },
             "doc": {
                 "model": "grok-3",
@@ -76,7 +76,7 @@ def create_default_config():
                 "output": "output.txt",
                 "json_out": "/tmp/grk_doc_output.json",
                 "prompt_prepend": "",
-                "temperature": 0.7  # Added temperature option
+                "temperature": 0.7
             },
             "law": {
                 "model": "grok-3-fast",
@@ -84,7 +84,7 @@ def create_default_config():
                 "output": "output.txt",
                 "json_out": "/tmp/grk_law_output.json",
                 "prompt_prepend": "write concise legal argumentation, prefer latex, use the cenum environment for continuous numbering throughout the document. ",
-                "temperature": 0.5  # Added temperature option
+                "temperature": 0.5
             },
             "psy": {
                 "model": "grok-3",
@@ -92,12 +92,12 @@ def create_default_config():
                 "output": "output.txt",
                 "json_out": "/tmp/grk_psy_output.json",
                 "prompt_prepend": """use standard psychological argumentation, write concise, use established psychological concepts from ICD10 and DSM5, use latex, assume cenum environment is available for continous numbering.""",
-                "temperature": 0.5  # Added temperature option
+                "temperature": 0.5
             },
         }
     }
 
-    # Add old profiles with _old suffix only if they differ from the new ones
+    # Add old profiles with _old suffix only if they differ
     for profile_name, profile_data in old_profiles.items():
         if profile_name in default_config["profiles"]:
             if profile_data != default_config["profiles"][profile_name]:
@@ -121,21 +121,19 @@ def main():
     pass
 
 @main.command()
-@click.argument("file", type=click.Path(exists=True, dir_okay=False))
+@click.option("-f", "--file", required=True, type=click.Path(exists=True, dir_okay=False), help="The input file to process")
 @click.argument("prompt")
-@click.option("-p", "--profile", default="default", help="The profile to use (e.g., default, py, doc, law, psy)")
+@click.option("-p", "--profile", default="default", help="The profile to use")
 def run(file: str, prompt: str, profile: str = "default"):
     """Run the Grok LLM processing using the specified profile."""
-    config = load_config(profile)  # Load config; if no .grkrc, returns {}
-    output_file = config.get("output", "output.txt")  # Use config or default
-    json_out_file = config.get("json_out", "output.json")
-    model_used = config.get("model", "grok-3-mini-fast")
-    role_from_config = config.get("role", "python-programmer")
-    role_used = role_from_config  # Use role from config only
-    prompt_prepend = config.get("prompt_prepend", "")
-    temperature = config.get("temperature", 0)  # Added temperature from config
+    config = load_config(profile)  # Returns ProfileConfig object
+    model_used = config.model or "grok-3-mini-fast"
+    role_from_config = config.role or "python-programmer"
+    output_file = config.output or "output.txt"
+    json_out_file = config.json_out or "output.json"
+    prompt_prepend = config.prompt_prepend or ""
+    temperature = config.temperature or 0
 
-    # API key must be from environment variable
     api_key = os.environ.get("XAI_API_KEY")
     if not api_key:
         raise click.ClickException("API key is required via XAI_API_KEY environment variable.")
@@ -145,31 +143,30 @@ def run(file: str, prompt: str, profile: str = "default"):
     except Exception as e:
         raise click.ClickException(f"Failed to read file: {str(e)}")
 
-    system_message = ROLES.get(role_used, ROLES["python-programmer"])
+    system_message = ROLES.get(role_from_config, ROLES["python-programmer"])
     full_prompt = prompt_prepend + prompt
 
-    console = Console()  # Initialize rich console for visualization
-    # Rich formatted message for profile parameters, file, and prompt, now multiline
+    console = Console()
     console.print("[bold green]Running grk[/bold green] with the following settings:")
     console.print(f"  Profile: [cyan]{profile}[/cyan]")
     console.print(f"  Model: [yellow]{model_used}[/yellow]")
-    console.print(f"  Role: [cyan]{role_used}[/cyan]")
+    console.print(f"  Role: [cyan]{role_from_config}[/cyan]")
     console.print(f"  File: [cyan]{file}[/cyan]")
     console.print(f"  Prompt: [italic green]{full_prompt}[/italic green]")
     console.print(f"  Temperature: [red]{temperature}[/red]")
 
-    with console.status("[bold green]Calling Grok API...[/bold green]"):  # Show spinner during API call
-        start_time = time.time()  # Record start time for API call
+    with console.status("[bold green]Calling Grok API...[/bold green]"):
+        start_time = time.time()
         response = call_grok(file_content, full_prompt, model_used, api_key, system_message, temperature)
-        end_time = time.time()  # Record end time
-        wait_time = end_time - start_time  # Calculate wait time
-    click.echo(f"API call completed in {wait_time:.2f} seconds.")  # Print wait time
+        end_time = time.time()
+        wait_time = end_time - start_time
+    click.echo(f"API call completed in {wait_time:.2f} seconds.")
 
     try:
         Path(output_file).write_text(response)
         with Path(json_out_file).open("w") as f:
             json.dump(
-                {"input": file_content, "prompt": full_prompt, "response": response, "used_role": role_used, "used_profile": profile},
+                {"input": file_content, "prompt": full_prompt, "response": response, "used_role": role_from_config, "used_profile": profile},
                 f,
                 indent=2,
             )
@@ -191,12 +188,12 @@ def list():
         profiles = full_config.get("profiles", {})
         if profiles:
             yaml_dumper = YAML()
-            with StringIO() as stream:  # Use StringIO to get YAML as string
+            with StringIO() as stream:
                 yaml_dumper.dump({"profiles": profiles}, stream)
                 yaml_str = stream.getvalue()
-            syntax = Syntax(yaml_str, "yaml", theme="monokai", line_numbers=True)  # Highlight YAML
+            syntax = Syntax(yaml_str, "yaml", theme="monokai", line_numbers=True)
             console = Console()
-            console.print(syntax)  # Display with highlighting
+            console.print(syntax)
         else:
             click.echo("No profiles defined in .grkrc.")
     except Exception as e:
