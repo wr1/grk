@@ -151,11 +151,11 @@ def run(file: str, prompt: str, profile: str = "default"):
     console = Console()  # Initialize rich console for visualization
     # Rich formatted message for profile parameters, file, and prompt, now multiline
     console.print("[bold green]Running grk[/bold green] with the following settings:")
-    console.print(f"  Profile: [bold blue]{profile}[/bold blue]")
+    console.print(f"  Profile: [cyan]{profile}[/cyan]")
     console.print(f"  Model: [yellow]{model_used}[/yellow]")
-    console.print(f"  Role: [purple]{role_used}[/purple]")
+    console.print(f"  Role: [cyan]{role_used}[/cyan]")
     console.print(f"  File: [cyan]{file}[/cyan]")
-    console.print(f"  Prompt: [italic]{full_prompt}[/italic]")
+    console.print(f"  Prompt: [italic green]{full_prompt}[/italic green]")
     console.print(f"  Temperature: [red]{temperature}[/red]")
 
     with console.status("[bold green]Calling Grok API...[/bold green]"):  # Show spinner during API call
