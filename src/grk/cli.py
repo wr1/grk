@@ -137,7 +137,7 @@ def main():
 
 
 @main.command()
-@click.argument("file", type=click.Path(exists=True, dir_okay=False))
+@click.option("-f", "--file", required=True, type=click.Path(exists=True, dir_okay=False), help="The file to process")
 @click.argument("prompt")
 @click.option("-p", "--profile", default="default", help="The profile to use")
 def run(file: str, prompt: str, profile: str = "default"):

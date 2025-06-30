@@ -15,7 +15,7 @@ def load_config(profile: str = "default") -> ProfileConfig:
         full_config = FullConfig(**data)  # Parse into FullConfig for validation
         profile_data = full_config.profiles.get(profile)
         if profile_data:
-            return ProfileConfig(**profile_data)  # Return validated ProfileConfig
+            return profile_data  # Return the existing ProfileConfig object
         return ProfileConfig()  # Return empty if profile not found
     except Exception as e:
         print(f"Warning: Failed to load .grkrc profile '{profile}': {str(e)}")
