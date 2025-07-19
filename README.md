@@ -1,12 +1,13 @@
 ![Deploy](https://github.com/wr1/grk/actions/workflows/tests.yml/badge.svg)![Version](https://img.shields.io/github/v/release/wr1/grk)
 # grk
 
-CLI tool to use GROK API, aimed at use with code and typesetting. 
+Use GROK API in the terminal, control input, output and profiles. 
 
 ## Features
 
-- Prompt grok using a combination of file(s) and prompt
-- Exact control over which files go into grok
+- Prompt grok using a combination of file(s) and prompt.
+- Have profiles to use different grok assistants in the same project.
+- Control which files go into grok.
 
 ## Installation
 With `pip`
@@ -30,9 +31,9 @@ profiles:
         json_out: /tmp/grok_output.json
         prompt_prepend: " "
         temperature: 0.1  
-    python:
-        model: grok-3-mini-fast
-        role: python-programmer
+    law:
+        model: grok-3
+        role: lawyer, expert legal scholar
         output: output.txt
         json_out: output.json
         prompt_prepend: ""
