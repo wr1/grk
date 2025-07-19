@@ -1,13 +1,12 @@
 ![Deploy](https://github.com/wr1/grk/actions/workflows/tests.yml/badge.svg)![Version](https://img.shields.io/github/v/release/wr1/grk)
 # grk
 
-CLI tool to push cfold files to Grok LLM and save output as cfold and JSON.
+CLI tool to use GROK API, aimed at use with code and typesetting. 
 
 ## Features
 
 - Prompt grok using a combination of file(s) and prompt
 - Exact control over which files go into grok
-
 
 ## Installation
 With `pip`
@@ -19,9 +18,7 @@ Or `uv`
 uv pip install . 
 ```
 
-
 ## Configuration
-
 You can create a `.grkrc` YAML file in the current directory to set default options. It now supports multiple profiles.
 
 ```yaml
