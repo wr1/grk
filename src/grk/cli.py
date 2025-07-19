@@ -60,7 +60,7 @@ def run(file: str, prompt: str, profile: str = "default"):
     console.print(f"    Prompt: [italic green]{full_prompt}[/italic green]")
     console.print(f"    Temperature: [red]{temperature}[/red]")
 
-    console.print("[bold blue]Calling Grok API...[/bold blue]")
+    console.print("[bold green]Calling Grok API...[/bold green]")
     start_time = time.time()
 
     with ThreadPoolExecutor(max_workers=1) as executor:
@@ -73,8 +73,10 @@ def run(file: str, prompt: str, profile: str = "default"):
             role_from_config,
             temperature,
         )
-        spinner = Spinner("dots", "[bold red] Waiting for API response...[/bold red]")
-        with Live(spinner, console=console, refresh_per_second=10, transient=True):
+        spinner = Spinner(
+            "dots", "[bold yellow] Waiting for API response...[/bold yellow]"
+        )
+        with Live(spinner, console=console, refresh_per_second=15, transient=True):
             while not future.done():
                 time.sleep(0.1)
         response = future.result()
