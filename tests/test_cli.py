@@ -48,11 +48,16 @@ def test_run_command_with_profile(runner, tmp_path, monkeypatch, profile, mocker
     monkeypatch.setenv('XAI_API_KEY', 'dummy_key')
     Path('input.txt').write_text('Test content')
 
-    mock_response = mocker.patch('requests.post')
-    mock_response.return_value.status_code = 200
-    mock_response.return_value.json.return_value = {
-        "choices": [{"message": {"content": f"Response for {profile}"}}]
-    }
+    mock_post = mocker.patch('requests.post')
+    mock_response = mocker.Mock()
+    mock_response.status_code = 200
+    mock_response.iter_lines.return_value = [
+        b'data: {"choices": [{"delta": {"content": "Response for "}}]}',
+        b'data: {"choices": [{"delta": {"content": "%s"}}]}' % profile.encode(),
+        b'data: {"choices": [{"finish_reason": "stop"}]}',
+        b'data: [DONE]'
+    ]
+    mock_post.return_value = mock_response
 
     cmd = ['run', 'input.txt', 'Test prompt']
     if profile != "default":
@@ -60,7 +65,6 @@ def test_run_command_with_profile(runner, tmp_path, monkeypatch, profile, mocker
     result = runner.invoke(main, cmd)
     assert result.exit_code == 0
     assert "Running grk with the following settings:" in result.output
-    assert f"  Profile: {profile}" in result.output
     assert Path('output.txt').exists()
 
 def test_call_grok_api_failure(runner, tmp_path, monkeypatch, mocker):

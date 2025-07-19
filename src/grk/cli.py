@@ -11,6 +11,7 @@ import time
 from rich.console import Console
 from rich.syntax import Syntax
 from io import StringIO
+from typing import Callable, Optional
 
 API_URL = "https://api.x.ai/v1/chat/completions"
 
@@ -29,6 +30,8 @@ def call_grok(
     api_key: str,
     system_message: str,
     temperature: float = 0,
+    stream: bool = False,
+    on_chunk: Optional[Callable[[str], None]] = None,
 ) -> str:
     """Call Grok API with content and prompt."""
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
@@ -38,13 +41,34 @@ def call_grok(
             {"role": "system", "content": system_message},
             {"role": "user", "content": file_content + "\n" + prompt},
         ],
-        "stream": False,
+        "stream": stream,
         "temperature": temperature,
     }
     try:
-        response = requests.post(API_URL, json=payload, headers=headers)
+        response = requests.post(API_URL, json=payload, headers=headers, stream=stream)
         response.raise_for_status()
-        return response.json()["choices"][0]["message"]["content"]
+        if not stream:
+            return response.json()["choices"][0]["message"]["content"]
+        else:
+            full_content = ""
+            for line in response.iter_lines():
+                if line:
+                    decoded_line = line.decode("utf-8")
+                    if decoded_line == "data: [DONE]":
+                        break
+                    if decoded_line.startswith("data: "):
+                        data = json.loads(decoded_line[6:])
+                        if "choices" in data and data["choices"]:
+                            choice = data["choices"][0]
+                            if "finish_reason" in choice and choice["finish_reason"] is not None:
+                                break
+                            delta = choice.get("delta", {})
+                            chunk = delta.get("content", "")
+                            if chunk:
+                                full_content += chunk
+                                if on_chunk:
+                                    on_chunk(chunk)
+            return full_content
     except requests.RequestException as e:
         raise click.ClickException(f"API request failed: {str(e)}")
 
@@ -173,13 +197,24 @@ def run(file: str, prompt: str, profile: str = "default"):
     console.print(f"  Prompt: [italic green]{full_prompt}[/italic green]")
     console.print(f"  Temperature: [red]{temperature}[/red]")
 
-    with console.status("[bold green]Calling Grok API...[/bold green]"):
-        start_time = time.time()
-        response = call_grok(
-            file_content, full_prompt, model_used, api_key, system_message, temperature
-        )
-        end_time = time.time()
-        wait_time = end_time - start_time
+    def print_chunk(chunk: str) -> None:
+        console.print(chunk, end="", style="green", highlight=False)
+
+    console.print("[bold green]Calling Grok API...[/bold green]")
+    start_time = time.time()
+    response = call_grok(
+        file_content,
+        full_prompt,
+        model_used,
+        api_key,
+        system_message,
+        temperature,
+        stream=True,
+        on_chunk=print_chunk,
+    )
+    console.print()  # Newline after streaming
+    end_time = time.time()
+    wait_time = end_time - start_time
     click.echo(f"API call completed in {wait_time:.2f} seconds.")
 
     try:
