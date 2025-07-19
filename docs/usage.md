@@ -5,7 +5,7 @@ The `grk` CLI provides commands to initialize configuration, list profiles, and 
 ## Basic Commands
 
 ```bash
-grk init
+grk init 
 grk list
 grk run <input_file> <prompt> [-p <profile>]
 ```

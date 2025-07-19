@@ -9,6 +9,10 @@
 - **Role-based System Messages**: Choose predefined roles for Grok (e.g., Python programmer, lawyer) to tailor responses.
 - **Terminal Visualization**: Enhanced user experience with rich terminal output for better readability.
 
+## Design considerations
+- **No magic**: Control what gets sent to the LLM by explicitly *folding* the files into a single txt, avoid background reading of git histories etc. 
+- **Enable legal applications**: For use with legal documents, it is important that e.g. only the pseudonymized version gets submitted. 
+
 ## Getting Started
 
 - [Installation](./installation.md)

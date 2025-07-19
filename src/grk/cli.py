@@ -65,12 +65,12 @@ def create_default_config():
     default_config = {
         "profiles": {
             "default": {
-                "model": "grok-3-mini-fast",
-                "role": "python-programmer",
+                "model": "grok-4",
+                "role": "expert engineer and dev",
                 "output": "output.txt",
                 "json_out": "/tmp/grk_default_output.json",
                 "prompt_prepend": "",
-                "temperature": 0,
+                "temperature": 0.25,
             },
             "py": {
                 "model": "grok-3-mini-fast",
@@ -89,19 +89,19 @@ def create_default_config():
                 "temperature": 0.7,
             },
             "law": {
-                "model": "grok-3-fast",
+                "model": "grok-4",
                 "role": "senior lawyer/legal scholar",
                 "output": "output.txt",
                 "json_out": "/tmp/grk_law_output.json",
-                "prompt_prepend": "write concise legal argumentation, prefer latex, use the cenum environment for continuous numbering throughout the document. ",
-                "temperature": 0.5,
+                "prompt_prepend": "write concise legal argumentation, prefer latex",
+                "temperature": 0.35,
             },
             "psy": {
-                "model": "grok-3",
+                "model": "grok-4",
                 "role": "senior psychologist",
                 "output": "output.txt",
                 "json_out": "/tmp/grk_psy_output.json",
-                "prompt_prepend": """use standard psychological argumentation, write concise, use established psychological concepts from ICD10 and DSM5, use latex, assume cenum environment is available for continous numbering.""",
+                "prompt_prepend": """use standard psychological argumentation, write concise, use established psychological concepts from ICD10 and DSM5, use latex""",
                 "temperature": 0.5,
             },
         }
@@ -137,8 +137,8 @@ def main():
 
 
 @main.command()
-@click.option("-f", "--file", required=True, type=click.Path(exists=True, dir_okay=False), help="The file to process")
-@click.argument("prompt")
+@click.argument("file", type=click.Path(exists=True, dir_okay=False), required=True)
+@click.argument("prompt", required=True)
 @click.option("-p", "--profile", default="default", help="The profile to use")
 def run(file: str, prompt: str, profile: str = "default"):
     """Run the Grok LLM processing using the specified profile."""

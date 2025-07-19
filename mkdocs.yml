@@ -1,4 +1,4 @@
-site_name: grk Documentation
+site_name: grk docs
 theme:
   name: material
   features:

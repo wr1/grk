@@ -29,18 +29,17 @@ def test_run_command_no_api_key(runner, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     Path('input.txt').write_text('Test content')
     monkeypatch.delenv('XAI_API_KEY', raising=False)
-    result = runner.invoke(main, ['run', 'default', 'input.txt', 'Test prompt'])
+    result = runner.invoke(main, ['run', 'input.txt', 'Test prompt'])
     assert result.exit_code != 0
     assert 'API key is required' in result.output
 
-@pytest.mark.skip("fails")
 def test_run_command_file_not_found(runner, tmp_path, monkeypatch):
     """Test run command with non-existent input file."""
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv('XAI_API_KEY', 'dummy_key')
-    result = runner.invoke(main, ['run', 'default', 'nonexistent.txt', 'Test prompt'])
+    result = runner.invoke(main, ['run', 'nonexistent.txt', 'Test prompt'])
     assert result.exit_code != 0
-    assert 'Failed to read file' in result.output
+    assert 'does not exist' in result.output.lower()  # Click error for non-existent path
 
 @pytest.mark.parametrize("profile", ["default", "py", "doc"])
 def test_run_command_with_profile(runner, tmp_path, monkeypatch, profile, mocker):
@@ -55,9 +54,13 @@ def test_run_command_with_profile(runner, tmp_path, monkeypatch, profile, mocker
         "choices": [{"message": {"content": f"Response for {profile}"}}]
     }
 
-    result = runner.invoke(main, ['run', profile, 'input.txt', 'Test prompt'])
+    cmd = ['run', 'input.txt', 'Test prompt']
+    if profile != "default":
+        cmd.extend(['-p', profile])
+    result = runner.invoke(main, cmd)
     assert result.exit_code == 0
-    assert f"Running grk with profile '{profile}'" in result.output
+    assert "Running grk with the following settings:" in result.output
+    assert f"  Profile: {profile}" in result.output
     assert Path('output.txt').exists()
 
 def test_call_grok_api_failure(runner, tmp_path, monkeypatch, mocker):

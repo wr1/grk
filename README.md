@@ -9,11 +9,10 @@ CLI tool to push cfold files to Grok LLM and save output as cfold and JSON.
 - 
 
 
-
 ## Installation
 
 ```bash
-uv add click requests ruamel.yaml
+uv pip install . 
 ```
 
 
@@ -24,25 +23,25 @@ You can create a `.grkrc` YAML file in the current directory to set default opti
 ```yaml
 profiles:
   default:
-    model: grok-3-mini-fast
-    role: python-programmer
+    model: grok-4
+    role: expert engineer and dev
     output: output.txt
-    json_out: output.json
-    prompt_prepend: "Process this cfold file:\n"
-    temperature: 0  
+    json_out: /tmp/grok_output.json
+    prompt_prepend: " "
+    temperature: 0.1  
   python:
     model: grok-3-mini-fast
     role: python-programmer
     output: output.txt
     json_out: output.json
-    prompt_prepend: "Process this cfold file:\n"
+    prompt_prepend: ""
     temperature: 0.15  # slightly more creative version of default
   docs:
-    model: grok-3
+    model: grok-4
     role: documentation-specialist
     output: output.txt
     json_out: output.json
-    prompt_prepend: "Process this cfold file:\n"
+    prompt_prepend: "aim for conciseness and documenting use over implementation, "
     temperature: 0.7  
 ```
 
