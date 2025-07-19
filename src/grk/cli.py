@@ -15,20 +15,24 @@ from concurrent.futures import ThreadPoolExecutor
 from rich.live import Live
 from rich.spinner import Spinner
 
+
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 def main():
     """CLI tool to interact with Grok LLM."""
     pass
 
+
 @main.command()
-@click.option("-f", "--file", type=click.Path(exists=True, dir_okay=False), required=True, help="Input file path")
-@click.option("--prompt", required=True, help="Prompt for the LLM")
+@click.argument("file", type=click.Path(exists=True, dir_okay=False), required=True)
+@click.argument("prompt", required=True)
 @click.option("-p", "--profile", default="default", help="The profile to use")
 def run(file: str, prompt: str, profile: str = "default"):
     """Run the Grok LLM processing using the specified profile."""
     config = load_config(profile)  # Returns ProfileConfig object
     model_used = config.model or "grok-3-mini-fast"
-    role_from_config = config.role or "you are an expert python programmer, writing clean code"
+    role_from_config = (
+        config.role or "you are an expert python programmer, writing clean code"
+    )
     output_file = config.output or "output.txt"
     json_out_file = config.json_out or "output.json"
     prompt_prepend = config.prompt_prepend or ""
@@ -97,6 +101,7 @@ def run(file: str, prompt: str, profile: str = "default"):
     except Exception as e:
         raise click.ClickException(f"Failed to write output: {str(e)}")
 
+
 @main.command()
 def list():
     """List the configurations from .grkrc with YAML syntax highlighting."""
@@ -122,10 +127,12 @@ def list():
     except Exception as e:
         click.echo(f"Warning: Failed to load .grkrc: {str(e)}")
 
+
 @main.command()
 def init():
     """Initialize .grkrc with default profiles."""
     create_default_config()
+
 
 if __name__ == "__main__":
     main()
