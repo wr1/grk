@@ -1,12 +1,14 @@
 from pathlib import Path
 from ruamel.yaml import YAML
 from grk.config import load_config
+from grk.models import ProfileConfig  # Import for type checking
 
 def test_load_config_no_file(tmp_path, monkeypatch):
     """Test load_config when .grkrc file does not exist."""
     monkeypatch.chdir(tmp_path)
     result = load_config()
-    assert result == {}, "Should return empty dict if no config file exists"
+    assert isinstance(result, ProfileConfig)
+    assert result.model is None  # Empty ProfileConfig
 
 def test_load_config_default_profile(tmp_path, monkeypatch):
     """Test load_config with a valid .grkrc file for default profile."""
@@ -25,7 +27,9 @@ def test_load_config_default_profile(tmp_path, monkeypatch):
         yaml.dump(config_data, f)
     
     result = load_config()
-    assert result == config_data["profiles"]["default"], "Should load default profile from .grkrc"
+    assert isinstance(result, ProfileConfig)
+    assert result.model == "grok-3"
+    assert result.role == "python-programmer"
 
 def test_load_config_custom_profile(tmp_path, monkeypatch):
     """Test load_config with a valid .grkrc file for a custom profile."""
@@ -44,7 +48,8 @@ def test_load_config_custom_profile(tmp_path, monkeypatch):
         yaml.dump(config_data, f)
     
     result = load_config(profile="custom")
-    assert result == config_data["profiles"]["custom"], "Should load custom profile from .grkrc"
+    assert isinstance(result, ProfileConfig)
+    assert result.model == "grok-3-custom"
 
 def test_load_config_nonexistent_profile(tmp_path, monkeypatch):
     """Test load_config when the specified profile does not exist."""
@@ -62,7 +67,8 @@ def test_load_config_nonexistent_profile(tmp_path, monkeypatch):
         yaml.dump(config_data, f)
     
     result = load_config(profile="nonexistent")
-    assert result == {}, "Should return empty dict for nonexistent profile"
+    assert isinstance(result, ProfileConfig)
+    assert result.model is None
 
 def test_load_config_invalid_yaml(tmp_path, monkeypatch, capsys):
     """Test load_config with invalid YAML content."""
@@ -71,5 +77,6 @@ def test_load_config_invalid_yaml(tmp_path, monkeypatch, capsys):
     
     result = load_config()
     captured = capsys.readouterr()
-    assert "Warning: Failed to load .grkrc profile 'default'" in captured.out, "Should print warning for invalid YAML"
-    assert result == {}, "Should return empty dict for invalid YAML"
+    assert "Warning: Failed to load .grkrc profile 'default'" in captured.out
+    assert isinstance(result, ProfileConfig)
+    assert result.model is None  # Returns empty ProfileConfig on failure
