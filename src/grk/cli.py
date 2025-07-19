@@ -2,173 +2,33 @@
 
 import rich_click as click  # Use rich_click for colored help and output
 import json
-import requests
 import os
 from pathlib import Path
-from .config import load_config
+from .config import load_config, create_default_config
+from .api import call_grok
 from ruamel.yaml import YAML
 import time
 from rich.console import Console
 from rich.syntax import Syntax
 from io import StringIO
-from typing import Callable, Optional
-
-API_URL = "https://api.x.ai/v1/chat/completions"
-
-ROLES = {
-    "python-programmer": "you are an expert python programmer, writing clean code",
-    "lawyer": "you are an expert lawyer, providing legal advice",
-    "psychologist": "you are a professional psychologist, giving psychological advice",
-    "documentation-specialist": "you are an expert in writing documentation",
-}
-
-
-def call_grok(
-    file_content: str,
-    prompt: str,
-    model: str,
-    api_key: str,
-    system_message: str,
-    temperature: float = 0,
-    stream: bool = False,
-    on_chunk: Optional[Callable[[str], None]] = None,
-) -> str:
-    """Call Grok API with content and prompt."""
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": system_message},
-            {"role": "user", "content": file_content + "\n" + prompt},
-        ],
-        "stream": stream,
-        "temperature": temperature,
-    }
-    try:
-        response = requests.post(API_URL, json=payload, headers=headers, stream=stream)
-        response.raise_for_status()
-        if not stream:
-            return response.json()["choices"][0]["message"]["content"]
-        else:
-            full_content = ""
-            for line in response.iter_lines():
-                if line:
-                    decoded_line = line.decode("utf-8")
-                    if decoded_line == "data: [DONE]":
-                        break
-                    if decoded_line.startswith("data: "):
-                        data = json.loads(decoded_line[6:])
-                        if "choices" in data and data["choices"]:
-                            choice = data["choices"][0]
-                            if "finish_reason" in choice and choice["finish_reason"] is not None:
-                                break
-                            delta = choice.get("delta", {})
-                            chunk = delta.get("content", "")
-                            if chunk:
-                                full_content += chunk
-                                if on_chunk:
-                                    on_chunk(chunk)
-            return full_content
-    except requests.RequestException as e:
-        raise click.ClickException(f"API request failed: {str(e)}")
-
-
-def create_default_config():
-    """Create default .grkrc file with profiles, preserving old profiles with _old suffix if different."""
-    config_file = Path(".grkrc")
-    old_profiles = {}
-    if config_file.exists():
-        try:
-            yaml = YAML()
-            with config_file.open("r") as f:
-                existing_config = yaml.load(f) or {}
-            old_profiles = existing_config.get("profiles", {})
-        except Exception as e:
-            click.echo(f"Warning: Failed to load existing .grkrc: {str(e)}")
-
-    default_config = {
-        "profiles": {
-            "default": {
-                "model": "grok-4",
-                "role": "expert engineer and dev",
-                "output": "output.txt",
-                "json_out": "/tmp/grk_default_output.json",
-                "prompt_prepend": "",
-                "temperature": 0.25,
-            },
-            "py": {
-                "model": "grok-3-mini-fast",
-                "role": "python-programmer",
-                "output": "output.txt",
-                "json_out": "/tmp/grk_py_output.json",
-                "prompt_prepend": "",
-                "temperature": 0,
-            },
-            "doc": {
-                "model": "grok-3",
-                "role": "documentation-specialist",
-                "output": "output.txt",
-                "json_out": "/tmp/grk_doc_output.json",
-                "prompt_prepend": "",
-                "temperature": 0.7,
-            },
-            "law": {
-                "model": "grok-4",
-                "role": "senior lawyer/legal scholar",
-                "output": "output.txt",
-                "json_out": "/tmp/grk_law_output.json",
-                "prompt_prepend": "write concise legal argumentation, prefer latex",
-                "temperature": 0.35,
-            },
-            "psy": {
-                "model": "grok-4",
-                "role": "senior psychologist",
-                "output": "output.txt",
-                "json_out": "/tmp/grk_psy_output.json",
-                "prompt_prepend": """use standard psychological argumentation, write concise, use established psychological concepts from ICD10 and DSM5, use latex""",
-                "temperature": 0.5,
-            },
-        }
-    }
-
-    # Add old profiles with _old suffix only if they differ
-    for profile_name, profile_data in old_profiles.items():
-        if profile_name in default_config["profiles"]:
-            if profile_data != default_config["profiles"][profile_name]:
-                default_config["profiles"][f"{profile_name}_old"] = profile_data
-                click.echo(
-                    f"Profile '{profile_name}' differs from default, saved old as '{profile_name}_old'."
-                )
-        else:
-            default_config["profiles"][f"{profile_name}_old"] = profile_data
-            click.echo(
-                f"Profile '{profile_name}' not in default config, saved as '{profile_name}_old'."
-            )
-
-    try:
-        yaml = YAML()
-        with open(".grkrc", "w") as f:
-            yaml.dump(default_config, f)
-        click.echo("Default .grkrc with profiles created successfully.")
-    except Exception as e:
-        click.echo(f"Failed to create .grkrc: {str(e)}")
-
+from concurrent.futures import ThreadPoolExecutor
+from rich.live import Live
+from rich.spinner import Spinner
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 def main():
     """CLI tool to interact with Grok LLM."""
     pass
 
-
 @main.command()
-@click.argument("file", type=click.Path(exists=True, dir_okay=False), required=True)
-@click.argument("prompt", required=True)
+@click.option("-f", "--file", type=click.Path(exists=True, dir_okay=False), required=True, help="Input file path")
+@click.option("--prompt", required=True, help="Prompt for the LLM")
 @click.option("-p", "--profile", default="default", help="The profile to use")
 def run(file: str, prompt: str, profile: str = "default"):
     """Run the Grok LLM processing using the specified profile."""
     config = load_config(profile)  # Returns ProfileConfig object
     model_used = config.model or "grok-3-mini-fast"
-    role_from_config = config.role or "python-programmer"
+    role_from_config = config.role or "you are an expert python programmer, writing clean code"
     output_file = config.output or "output.txt"
     json_out_file = config.json_out or "output.json"
     prompt_prepend = config.prompt_prepend or ""
@@ -185,7 +45,6 @@ def run(file: str, prompt: str, profile: str = "default"):
     except Exception as e:
         raise click.ClickException(f"Failed to read file: {str(e)}")
 
-    system_message = ROLES.get(role_from_config, ROLES["python-programmer"])
     full_prompt = prompt_prepend + prompt
 
     console = Console()
@@ -197,22 +56,25 @@ def run(file: str, prompt: str, profile: str = "default"):
     console.print(f"  Prompt: [italic green]{full_prompt}[/italic green]")
     console.print(f"  Temperature: [red]{temperature}[/red]")
 
-    def print_chunk(chunk: str) -> None:
-        console.print(chunk, end="", style="green", highlight=False)
-
     console.print("[bold green]Calling Grok API...[/bold green]")
     start_time = time.time()
-    response = call_grok(
-        file_content,
-        full_prompt,
-        model_used,
-        api_key,
-        system_message,
-        temperature,
-        stream=True,
-        on_chunk=print_chunk,
-    )
-    console.print()  # Newline after streaming
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(
+            call_grok,
+            file_content,
+            full_prompt,
+            model_used,
+            api_key,
+            role_from_config,
+            temperature,
+        )
+        spinner = Spinner("dots", "Waiting for API response...")
+        with Live(spinner, console=console, refresh_per_second=10, transient=True):
+            while not future.done():
+                time.sleep(0.1)
+        response = future.result()
+
     end_time = time.time()
     wait_time = end_time - start_time
     click.echo(f"API call completed in {wait_time:.2f} seconds.")
@@ -234,7 +96,6 @@ def run(file: str, prompt: str, profile: str = "default"):
         click.echo(f"Response saved to {output_file} and {json_out_file}")
     except Exception as e:
         raise click.ClickException(f"Failed to write output: {str(e)}")
-
 
 @main.command()
 def list():
@@ -261,12 +122,10 @@ def list():
     except Exception as e:
         click.echo(f"Warning: Failed to load .grkrc: {str(e)}")
 
-
 @main.command()
 def init():
     """Initialize .grkrc with default profiles."""
     create_default_config()
-
 
 if __name__ == "__main__":
     main()
