@@ -12,11 +12,9 @@ CLI tool to push cfold files to Grok LLM and save output as cfold and JSON.
 ## Installation
 With `pip`
 ```bash
-uv pip install . 
+pip install . 
 ```
 Or `uv`
-
-
 ```bash
 uv pip install . 
 ```
@@ -85,6 +83,6 @@ All settings are governed by the specified profile in .grkrc. If no .grkrc exist
 
 - `XAI_API_KEY`: xAI API key (required)
 
-## Documentation
+<!-- ## Documentation
 
-For detailed documentation, visit our [MkDocs site](./docs/index.md) or run `mkdocs serve` locally after installing dependencies with `uv add mkdocs mkdocs-material`.
+For detailed documentation, visit our [MkDocs site](./docs/index.md) or run `mkdocs serve` locally after installing dependencies with `uv add mkdocs mkdocs-material`. -->
