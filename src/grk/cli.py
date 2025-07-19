@@ -53,14 +53,14 @@ def run(file: str, prompt: str, profile: str = "default"):
 
     console = Console()
     console.print("[bold green]Running grk[/bold green] with the following settings:")
-    console.print(f"  Profile: [cyan]{profile}[/cyan]")
-    console.print(f"  Model: [yellow]{model_used}[/yellow]")
-    console.print(f"  Role: [cyan]{role_from_config}[/cyan]")
-    console.print(f"  File: [cyan]{file}[/cyan]")
-    console.print(f"  Prompt: [italic green]{full_prompt}[/italic green]")
-    console.print(f"  Temperature: [red]{temperature}[/red]")
+    console.print(f"    Profile: [cyan]{profile}[/cyan]")
+    console.print(f"    Model: [yellow]{model_used}[/yellow]")
+    console.print(f"    Role: [cyan]{role_from_config}[/cyan]")
+    console.print(f"    File: [cyan]{file}[/cyan]")
+    console.print(f"    Prompt: [italic green]{full_prompt}[/italic green]")
+    console.print(f"    Temperature: [red]{temperature}[/red]")
 
-    console.print("[bold green]Calling Grok API...[/bold green]")
+    console.print("[bold blue]Calling Grok API...[/bold blue]")
     start_time = time.time()
 
     with ThreadPoolExecutor(max_workers=1) as executor:
@@ -73,7 +73,7 @@ def run(file: str, prompt: str, profile: str = "default"):
             role_from_config,
             temperature,
         )
-        spinner = Spinner("dots", "Waiting for API response...")
+        spinner = Spinner("dots", "[bold red] Waiting for API response...[/bold red]")
         with Live(spinner, console=console, refresh_per_second=10, transient=True):
             while not future.done():
                 time.sleep(0.1)
