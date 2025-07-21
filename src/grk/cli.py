@@ -23,8 +23,8 @@ def main():
 
 
 @main.command()
-@click.option("-f", "--file", type=click.Path(exists=True, dir_okay=False), required=True, help="The input file to read content from.")
-@click.option("-m", "--message", required=True, help="The prompt or message to send to the model.")
+@click.argument("file", type=click.Path(exists=True, dir_okay=False), required=True)
+@click.argument("message", required=True)
 @click.option("-p", "--profile", default="default", help="The profile to use")
 def run(file: str, message: str, profile: str = "default"):
     """Run the Grok LLM processing using the specified profile."""

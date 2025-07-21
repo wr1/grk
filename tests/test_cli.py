@@ -45,9 +45,9 @@ def test_run_command_file_not_found(runner, tmp_path, monkeypatch):
     assert "does not exist" in result.output
 
 
-@pytest.mark.skip(
-    "FAILED tests/test_cli.py::test_run_command_with_profile[..] - assert 1 == 0"
-)
+# @pytest.mark.skip(
+#     "FAILED tests/test_cli.py::test_run_command_with_profile[..] - assert 1 == 0"
+# )
 @pytest.mark.parametrize("profile", ["default", "py", "doc"])
 def test_run_command_with_profile(runner, tmp_path, monkeypatch, profile, mocker):
     """Test run command with different profiles."""
