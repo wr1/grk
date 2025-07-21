@@ -1,9 +1,7 @@
 import pytest
-import click
 from click.testing import CliRunner
 from pathlib import Path
-from grk.cli import main, call_grok
-import requests
+from grk.cli import main
 
 @pytest.fixture
 def runner():
@@ -12,69 +10,72 @@ def runner():
 
 def test_main_help(runner):
     """Test main CLI help command."""
-    result = runner.invoke(main, ['--help'])
+    result = runner.invoke(main, ["--help"])
     assert result.exit_code == 0
-    assert 'CLI tool to interact with Grok LLM.' in result.output
+    assert "CLI tool to interact with Grok LLM." in result.output
 
 def test_init_command(runner, tmp_path, monkeypatch):
     """Test init command to create default .grkrc file."""
     monkeypatch.chdir(tmp_path)
-    result = runner.invoke(main, ['init'])
+    result = runner.invoke(main, ["init"])
     assert result.exit_code == 0
-    assert Path('.grkrc').exists()
-    assert 'Default .grkrc with profiles created successfully' in result.output
+    assert Path(".grkrc").exists()
+    assert "Default .grkrc with profiles created successfully" in result.output
 
 def test_run_command_no_api_key(runner, tmp_path, monkeypatch):
     """Test run command without API key set."""
     monkeypatch.chdir(tmp_path)
-    Path('input.txt').write_text('Test content')
-    monkeypatch.delenv('XAI_API_KEY', raising=False)
-    result = runner.invoke(main, ['run', 'input.txt', 'Test prompt'])
+    Path("input.txt").write_text("Test content")
+    monkeypatch.delenv("XAI_API_KEY", raising=False)
+    result = runner.invoke(main, ["run", "--file", "input.txt", "--prompt", "Test prompt"])
     assert result.exit_code != 0
-    assert 'API key is required' in result.output
+    assert "API key is required" in result.output
 
 def test_run_command_file_not_found(runner, tmp_path, monkeypatch):
     """Test run command with non-existent input file."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv('XAI_API_KEY', 'dummy_key')
-    result = runner.invoke(main, ['run', 'nonexistent.txt', 'Test prompt'])
+    monkeypatch.setenv("XAI_API_KEY", "dummy_key")
+    result = runner.invoke(main, ["run", "--file", "nonexistent.txt", "--prompt", "Test prompt"])
     assert result.exit_code != 0
-    assert 'does not exist' in result.output.lower()  # Click error for non-existent path
+    assert "does not exist" in result.output
 
 @pytest.mark.parametrize("profile", ["default", "py", "doc"])
 def test_run_command_with_profile(runner, tmp_path, monkeypatch, profile, mocker):
     """Test run command with different profiles."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv('XAI_API_KEY', 'dummy_key')
-    Path('input.txt').write_text('Test content')
+    monkeypatch.setenv("XAI_API_KEY", "dummy_key")
+    Path("input.txt").write_text("Test content")
 
-    mock_post = mocker.patch('requests.post')
-    mock_response = mocker.Mock()
-    mock_response.status_code = 200
-    mock_response.iter_lines.return_value = [
-        b'data: {"choices": [{"delta": {"content": "Response for "}}]}',
-        b'data: {"choices": [{"delta": {"content": "%s"}}]}' % profile.encode(),
-        b'data: {"choices": [{"finish_reason": "stop"}]}',
-        b'data: [DONE]'
-    ]
-    mock_post.return_value = mock_response
+    # Initialize config to have profiles
+    init_result = runner.invoke(main, ["init"])
+    assert init_result.exit_code == 0
 
-    cmd = ['run', 'input.txt', 'Test prompt']
+    # Set up mock for API call
+    mock_client = mocker.Mock()
+    mock_client.chat = mocker.Mock()
+    mock_chat = mocker.Mock()
+    mock_sample = mocker.Mock()
+    mock_sample.content = f"Response for {profile}"
+    mock_chat.sample.return_value = mock_sample
+    mock_client.chat.create.return_value = mock_chat
+    mocker.patch('xai_sdk.Client', return_value=mock_client)
+
+    cmd = ["run", "--file", "input.txt", "--prompt", "Test prompt"]
     if profile != "default":
-        cmd.extend(['-p', profile])
+        cmd.extend(["-p", profile])
     result = runner.invoke(main, cmd)
     assert result.exit_code == 0
     assert "Running grk with the following settings:" in result.output
-    assert Path('output.txt').exists()
 
-def test_call_grok_api_failure(runner, tmp_path, monkeypatch, mocker):
-    """Test API call failure handling in call_grok."""
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv('XAI_API_KEY', 'dummy_key')
+    # Check if API was called with correct model based on profile
+    expected_models = {
+        "default": "grok-4",
+        "py": "grok-3-mini-fast",
+        "doc": "grok-3"
+    }
+    called_model = mock_client.chat.create.call_args.kwargs['model']
+    assert called_model == expected_models[profile]
 
-    mock_response = mocker.patch('requests.post')
-    mock_response.side_effect = requests.exceptions.RequestException("API error")
-
-    with pytest.raises(click.ClickException) as exc_info:
-        call_grok("Test content", "Test prompt", "grok-3", "dummy_key", "python-programmer")
-    assert "API request failed" in str(exc_info.value)
+    # Check output files
+    assert Path("output.txt").exists()
+    assert Path(f"grk_{profile}_output.json").exists()

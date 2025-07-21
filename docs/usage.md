@@ -7,7 +7,7 @@ The `grk` CLI provides commands to initialize configuration, list profiles, and 
 ```bash
 grk init 
 grk list
-grk run <input_file> <prompt> [-p <profile>]
+grk run <input_file> <prompt> [-p <profile>]  # Note: -p is the short form for --profile
 ```
 
 ### Examples
@@ -30,4 +30,4 @@ Get help:
 grk -h
 # or
 grk --help
-```
+

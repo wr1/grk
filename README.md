@@ -24,53 +24,53 @@ You can create a `.grkrc` YAML file in the current directory to set default opti
 
 ```yaml
 profiles:
-    default:
-        model: grok-4
-        role: expert engineer and dev
-        output: output.txt
-        json_out: /tmp/grok_output.json
-        prompt_prepend: " "
-        temperature: 0.1  
-    law:
-        model: grok-3
-        role: lawyer, expert legal scholar
-        output: output.txt
-        json_out: output.json
-        prompt_prepend: ""
-        temperature: 0.15
-    docs:
-        model: grok-4
-        role: documentation-specialist
-        output: output.txt
-        json_out: output.json
-        prompt_prepend: "aim for conciseness and documenting use over implementation, "
-        temperature: 0.7  
+default:
+model: grok-4
+role: expert engineer and dev
+output: output.txt
+json_out: /tmp/grok_output.json
+prompt_prepend: " "
+temperature: 0.1  
+law:
+model: grok-3
+role: lawyer, expert legal scholar
+output: output.txt
+json_out: output.json
+prompt_prepend: ""
+temperature: 0.15
+docs:
+model: grok-4
+role: documentation-specialist
+output: output.txt
+json_out: output.json
+prompt_prepend: "aim for conciseness and documenting use over implementation, "
+temperature: 0.7  
 ```
 
 ## Usage
 
 ```bash
 grk init
-grk run <input_file> <prompt> [-p <profile>]
+grk run <input_file> <prompt> [-p <profile>]  # Note: -p is the short form for --profile
 ```
 
 
 ### Advanced use
 Chaining with [cfold](https://github.com/wr1/cfold) allows making whole codebase changes. 
- ```bash
- # fold the local python project into a text file
- cfold fold -o folded_project.txt
- # run instructions on the codebase
- grk run folded_project.txt "change the CLI framework from argparse to click"  
- # unfold the changes
- cfold unfold output.txt
- ```
+```bash
+# fold the local python project into a text file
+cfold fold -o folded_project.txt
+# run instructions on the codebase
+grk run folded_project.txt "change the CLI framework from argparse to click"  
+# unfold the changes
+cfold unfold output.txt
+```
 This can be wrapped into a shell function for convenient terminal use, for example in `fish`: 
 ```shell
 function g 
-    cfold fold -o folded_project.txt
-    grk run folded_project.txt $argv    
-    cfold unfold output.txt
+cfold fold -o folded_project.txt
+grk run folded_project.txt $argv    
+cfold unfold output.txt
 end
 ```
 

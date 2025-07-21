@@ -1,6 +1,6 @@
 from pathlib import Path
 from ruamel.yaml import YAML
-from grk.config import load_config
+from grk.config import load_config, create_default_config
 from grk.models import ProfileConfig  # Import for type checking
 
 def test_load_config_no_file(tmp_path, monkeypatch):
@@ -80,3 +80,11 @@ def test_load_config_invalid_yaml(tmp_path, monkeypatch, capsys):
     assert "Warning: Failed to load .grkrc profile 'default'" in captured.out
     assert isinstance(result, ProfileConfig)
     assert result.model is None  # Returns empty ProfileConfig on failure
+
+def test_create_default_config(tmp_path, monkeypatch, capsys):
+    """Test create_default_config creates default .grkrc file."""
+    monkeypatch.chdir(tmp_path)
+    create_default_config()
+    assert Path('.grkrc').exists()
+    captured = capsys.readouterr()
+    assert "Default .grkrc with profiles created successfully" in captured.out
