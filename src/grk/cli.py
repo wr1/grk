@@ -23,10 +23,10 @@ def main():
 
 
 @main.command()
-@click.argument("file", type=click.Path(exists=True, dir_okay=False), required=True)
-@click.argument("prompt", required=True)
+@click.option("-f", "--file", type=click.Path(exists=True, dir_okay=False), required=True, help="The input file to read content from.")
+@click.option("-m", "--message", required=True, help="The prompt or message to send to the model.")
 @click.option("-p", "--profile", default="default", help="The profile to use")
-def run(file: str, prompt: str, profile: str = "default"):
+def run(file: str, message: str, profile: str = "default"):
     """Run the Grok LLM processing using the specified profile."""
     config = load_config(profile)  # Returns ProfileConfig object
     model_used = config.model or "grok-3-mini-fast"
@@ -49,7 +49,7 @@ def run(file: str, prompt: str, profile: str = "default"):
     except Exception as e:
         raise click.ClickException(f"Failed to read file: {str(e)}")
 
-    full_prompt = prompt_prepend + prompt
+    full_prompt = prompt_prepend + message
 
     console = Console()
     console.print("[bold green]Running grk[/bold green] with the following settings:")
