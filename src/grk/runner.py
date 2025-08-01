@@ -85,7 +85,7 @@ def run_grok(
     console.print(f" Role: [cyan]{role_from_config}[/cyan]")
     console.print(f" File: [cyan]{file}[/cyan]")
     console.print(f" Temperature: [red]{temperature}[/red]")
-    console.print(f" Output file: [cyan]{message}[/cyan]")
+    console.print(f" Prompt: [cyan]{message}[/cyan]")
 
     console.print("[bold green]Calling Grok API...[/bold green]")
     start_time = time.time()
