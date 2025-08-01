@@ -21,7 +21,10 @@ def call_grok(
             messages=messages,
             temperature=temperature,
         )
-        return chat.sample().content
+        response = chat.sample().content
+        if not isinstance(response, str):
+            raise ValueError("API response is not a string")
+        return response
     except Exception as e:
         raise click.ClickException(f"API request failed: {str(e)}")
 

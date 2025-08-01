@@ -46,8 +46,12 @@ def test_run_command_file_not_found(runner, tmp_path, monkeypatch):
     assert "does not exist" in result.output
 
 
-@pytest.mark.parametrize("profile", ["default", "py", "doc"])
-def test_run_command_with_profile(runner, tmp_path, monkeypatch, profile, mocker):
+@pytest.mark.parametrize("profile, expected_json_out", [
+    ("default", "grk_default_output.json"),
+    ("py", "grk_py_output.json"),
+    ("doc", "grk_doc_output.json"),
+])
+def test_run_command_with_profile(runner, tmp_path, monkeypatch, profile, expected_json_out, mocker):
     """Test run command with different profiles."""
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("XAI_API_KEY", "dummy_key")
@@ -81,5 +85,6 @@ def test_run_command_with_profile(runner, tmp_path, monkeypatch, profile, mocker
 
     # Check output files
     assert Path("output.json").exists()  # Adjusted to match default
-    assert Path("meta_output.json").exists()  # Adjusted to match default
+    assert Path(expected_json_out).exists()  # Adjusted to match default
+
 

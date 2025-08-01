@@ -2,7 +2,6 @@
 
 import json
 from typing import List, Union
-from xai_sdk.chat import assistant, system, user
 from pathlib import Path
 from .api import call_grok
 import time
@@ -13,9 +12,10 @@ from rich.spinner import Spinner
 import click
 from .config import ProfileConfig
 from .utils import analyze_changes
+from xai_sdk.chat import assistant, system, user
 
 
-def run_grok(file: str, message: str, config: ProfileConfig, api_key: str):
+def run_grok(file: str, message: str, config: ProfileConfig, api_key: str, profile: str = "default"):
     """Execute the Grok LLM run logic with given inputs and config."""
     model_used = config.model or "grok-3-mini-fast"
     role_from_config = (
@@ -46,12 +46,13 @@ def run_grok(file: str, message: str, config: ProfileConfig, api_key: str):
         if is_cfold:
             for instr in input_data["instructions"]:
                 role = instr["type"]
+                content = instr["content"]
                 if role == "system":
-                    msg = system(instr["content"])
+                    msg = system(content)
                 elif role == "user":
-                    msg = user(instr["content"])
+                    msg = user(content)
                 elif role == "assistant":
-                    msg = assistant(instr["content"])
+                    msg = assistant(content)
                 else:
                     raise ValueError(f"Unknown message type: {role}")
                 if role == "user" and instr.get("name"):
@@ -73,23 +74,11 @@ def run_grok(file: str, message: str, config: ProfileConfig, api_key: str):
 
     console = Console()
     console.print("[bold green]Running grk[/bold green] with the following settings:")
-    console.print(f" Profile: [cyan]{config.profile}[/cyan]")
+    console.print(f" Profile: [cyan]{profile}[/cyan]")
     console.print(f" Model: [yellow]{model_used}[/yellow]")
     console.print(f" Role: [cyan]{role_from_config}[/cyan]")
     console.print(f" File: [cyan]{file}[/cyan]")
     console.print(f" Temperature: [red]{temperature}[/red]")
-
-    console.print("[bold green]Message stack:[/bold green]")
-    for i, msg in enumerate(messages):
-        role = msg.role
-        content = msg.content
-        truncated = content[:200] + "..." if len(content) > 200 else content
-        if i == len(messages) - 1 and role == "user":
-            console.print(f"[{role.upper()}]: {content}")
-        else:
-            console.print(f"[{role.upper()}]: {truncated}")
-        if hasattr(msg, "name") and msg.name:
-            console.print(f"  Name: {msg.name}")
 
     console.print("[bold green]Calling Grok API...[/bold green]")
     start_time = time.time()
@@ -119,7 +108,22 @@ def run_grok(file: str, message: str, config: ProfileConfig, api_key: str):
     click.echo(f"API call completed in {wait_time:.2f} seconds.")
 
     try:
-        Path(output_file).write_text(response)
+        # Always write the response, format if valid JSON for cfold
+        if is_cfold:
+            response_to_parse = response.strip()
+            if response_to_parse.startswith("```json") and response_to_parse.endswith("```"):
+                inner = response_to_parse[7:-3].strip()
+                response_to_parse = inner
+            try:
+                output_data = json.loads(response_to_parse)
+                with Path(output_file).open("w") as f:
+                    json.dump(output_data, f, indent=2)
+            except json.JSONDecodeError:
+                console.print("[yellow]Warning: Response is not valid JSON, writing as text.[/yellow]")
+                Path(output_file).write_text(response)
+        else:
+            Path(output_file).write_text(response)
+
         with Path(json_out_file).open("w") as f:
             json.dump(
                 {
@@ -127,7 +131,9 @@ def run_grok(file: str, message: str, config: ProfileConfig, api_key: str):
                     "prompt": full_prompt,
                     "response": response,
                     "used_role": role_from_config,
-                    "used_profile": config.profile,
+                    "used_model": model_used,
+                    "used_profile": profile,
+                    "temperature": temperature,
                 },
                 f,
                 indent=2,
@@ -138,4 +144,5 @@ def run_grok(file: str, message: str, config: ProfileConfig, api_key: str):
             analyze_changes(input_data, response, console)
     except Exception as e:
         raise click.ClickException(f"Failed to write output: {str(e)}")
+
 
