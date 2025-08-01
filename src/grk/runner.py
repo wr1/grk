@@ -15,7 +15,13 @@ from .utils import analyze_changes
 from xai_sdk.chat import assistant, system, user
 
 
-def run_grok(file: str, message: str, config: ProfileConfig, api_key: str, profile: str = "default"):
+def run_grok(
+    file: str,
+    message: str,
+    config: ProfileConfig,
+    api_key: str,
+    profile: str = "default",
+):
     """Execute the Grok LLM run logic with given inputs and config."""
     model_used = config.model or "grok-3-mini-fast"
     role_from_config = (
@@ -79,6 +85,7 @@ def run_grok(file: str, message: str, config: ProfileConfig, api_key: str, profi
     console.print(f" Role: [cyan]{role_from_config}[/cyan]")
     console.print(f" File: [cyan]{file}[/cyan]")
     console.print(f" Temperature: [red]{temperature}[/red]")
+    console.print(f" Output file: [cyan]{message}[/cyan]")
 
     console.print("[bold green]Calling Grok API...[/bold green]")
     start_time = time.time()
@@ -111,7 +118,9 @@ def run_grok(file: str, message: str, config: ProfileConfig, api_key: str, profi
         # Always write the response, format if valid JSON for cfold
         if is_cfold:
             response_to_parse = response.strip()
-            if response_to_parse.startswith("```json") and response_to_parse.endswith("```"):
+            if response_to_parse.startswith("```json") and response_to_parse.endswith(
+                "```"
+            ):
                 inner = response_to_parse[7:-3].strip()
                 response_to_parse = inner
             try:
@@ -119,7 +128,9 @@ def run_grok(file: str, message: str, config: ProfileConfig, api_key: str, profi
                 with Path(output_file).open("w") as f:
                     json.dump(output_data, f, indent=2)
             except json.JSONDecodeError:
-                console.print("[yellow]Warning: Response is not valid JSON, writing as text.[/yellow]")
+                console.print(
+                    "[yellow]Warning: Response is not valid JSON, writing as text.[/yellow]"
+                )
                 Path(output_file).write_text(response)
         else:
             Path(output_file).write_text(response)
@@ -144,5 +155,3 @@ def run_grok(file: str, message: str, config: ProfileConfig, api_key: str, profi
             analyze_changes(input_data, response, console)
     except Exception as e:
         raise click.ClickException(f"Failed to write output: {str(e)}")
-
-
