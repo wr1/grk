@@ -31,7 +31,7 @@ def test_run_command_no_api_key(runner, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     Path("input.txt").write_text("Test content")
     monkeypatch.delenv("XAI_API_KEY", raising=False)
-    result = runner.invoke(main, ["run", "-f", "input.txt", "-m", "Test prompt"])
+    result = runner.invoke(main, ["run", "input.txt", "Test prompt"])
     assert result.exit_code != 0
     assert "API key is required" in result.output
 
@@ -40,14 +40,11 @@ def test_run_command_file_not_found(runner, tmp_path, monkeypatch):
     """Test run command with non-existent input file."""
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("XAI_API_KEY", "dummy_key")
-    result = runner.invoke(main, ["run", "-f", "nonexistent.txt", "-m", "Test prompt"])
+    result = runner.invoke(main, ["run", "nonexistent.txt", "Test prompt"])
     assert result.exit_code != 0
     assert "does not exist" in result.output
 
 
-# @pytest.mark.skip(
-#     "FAILED tests/test_cli.py::test_run_command_with_profile[..] - assert 1 == 0"
-# )
 @pytest.mark.parametrize("profile", ["default", "py", "doc"])
 def test_run_command_with_profile(runner, tmp_path, monkeypatch, profile, mocker):
     """Test run command with different profiles."""
@@ -69,7 +66,7 @@ def test_run_command_with_profile(runner, tmp_path, monkeypatch, profile, mocker
     mock_client.chat.create.return_value = mock_chat
     mocker.patch("xai_sdk.Client", return_value=mock_client)
 
-    cmd = ["run", "-f", "input.txt", "-m", "Test prompt"]
+    cmd = ["run", "input.txt", "Test prompt"]
     if profile != "default":
         cmd.extend(["-p", profile])
     result = runner.invoke(main, cmd)
