@@ -7,7 +7,7 @@ Use GROK API in the terminal, control input, output and profiles.
 
 - Prompt grok using a combination of file(s) and prompt.
 - Have profiles to use different grok assistants in the same project.
-- Control which files go into grok.
+- Precisely control which files go into `grok` (contrast with agents).
 
 ## Installation
 With `pip`
@@ -68,9 +68,9 @@ cfold unfold output.txt
 This can be wrapped into a shell function for convenient terminal use, for example in `fish`: 
 ```shell
 function g 
-cfold fold -o folded_project.txt
-grk run folded_project.txt $argv    
-cfold unfold output.txt
+    cfold fold -o folded_project.txt
+    grk run folded_project.txt $argv    
+    cfold unfold output.txt
 end
 ```
 
@@ -80,6 +80,9 @@ All settings are governed by the specified profile in .grkrc. If no .grkrc exist
 ## Environment Variables
 
 - `XAI_API_KEY`: xAI API key (required)
+
+## License 
+MIT
 
 <!-- ## Documentation
 

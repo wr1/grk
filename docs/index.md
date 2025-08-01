@@ -10,8 +10,8 @@
 - **Terminal Visualization**: Enhanced user experience with rich terminal output for better readability.
 
 ## Design considerations
-- **No magic**: Control what gets sent to the LLM by explicitly *folding* the files into a single txt, avoid background reading of git histories etc. 
-- **Enable legal applications**: For use with legal documents, it is important that e.g. only the pseudonymized version gets submitted. 
+- **No magic**: Control what gets sent to the LLM by explicitly *folding* the files into a single text file, avoid background reading of git histories etc. 
+- **Enable legal applications**: For use with legal documents, it is important that e.g. only pseudonymized versions of documents get submitted. 
 
 ## Getting Started
 

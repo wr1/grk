@@ -1,8 +1,10 @@
 """Load and manage configuration using Pydantic for validation."""
+
 from pathlib import Path
 from ruamel.yaml import YAML
 from .models import FullConfig, ProfileConfig  # Import Pydantic models
 import click
+
 
 def load_config(profile: str = "default") -> ProfileConfig:
     """Load specified profile from .grkrc YAML config file and validate with Pydantic."""
@@ -21,6 +23,7 @@ def load_config(profile: str = "default") -> ProfileConfig:
     except Exception as e:
         print(f"Warning: Failed to load .grkrc profile '{profile}': {str(e)}")
         return ProfileConfig()
+
 
 def create_default_config():
     """Create default .grkrc file with profiles, preserving old profiles with _old suffix if different."""
@@ -71,11 +74,11 @@ def create_default_config():
             },
             "psy": {
                 "model": "grok-4",
-                "role": "you are a professional psychologist, giving psychological advice",
+                "role": "you are an expert professor in psychology",
                 "output": "output.txt",
                 "json_out": "grk_psy_output.json",
-                "prompt_prepend": """use standard psychological argumentation, write concise, use established psychological concepts from ICD10 and DSM5, use latex""",
-                "temperature": 0.5,
+                "prompt_prepend": "",
+                "temperature": 0.3,
             },
         }
     }
