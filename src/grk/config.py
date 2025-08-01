@@ -2,7 +2,7 @@
 
 from pathlib import Path
 from ruamel.yaml import YAML
-from .models import FullConfig, ProfileConfig  # Import Pydantic models
+from .models import FullConfig, ProfileConfig # Import Pydantic models
 import click
 
 
@@ -10,16 +10,16 @@ def load_config(profile: str = "default") -> ProfileConfig:
     """Load specified profile from .grkrc YAML config file and validate with Pydantic."""
     config_file = Path(".grkrc")
     if not config_file.exists():
-        return ProfileConfig()  # Return empty ProfileConfig
+        return ProfileConfig() # Return empty ProfileConfig
     try:
         yaml = YAML()
         with config_file.open("r") as f:
             data = yaml.load(f) or {}
-        full_config = FullConfig(**data)  # Parse into FullConfig for validation
+        full_config = FullConfig(**data) # Parse into FullConfig for validation
         profile_data = full_config.profiles.get(profile)
         if profile_data:
-            return profile_data  # Return the existing ProfileConfig object
-        return ProfileConfig()  # Return empty if profile not found
+            return profile_data # Return the existing ProfileConfig object
+        return ProfileConfig() # Return empty if profile not found
     except Exception as e:
         print(f"Warning: Failed to load .grkrc profile '{profile}': {str(e)}")
         return ProfileConfig()
@@ -42,8 +42,8 @@ def create_default_config():
         "profiles": {
             "default": {
                 "model": "grok-4",
-                "role": "you are an expert engineer and dev",
-                "output": "output.txt",
+                "role": "you are an expert engineer and developer",
+                "output": "output.json",
                 "json_out": "grk_default_output.json",
                 "prompt_prepend": "",
                 "temperature": 0.25,
@@ -51,7 +51,7 @@ def create_default_config():
             "py": {
                 "model": "grok-3-mini-fast",
                 "role": "you are an expert python programmer, writing clean code",
-                "output": "output.txt",
+                "output": "output.json",
                 "json_out": "grk_py_output.json",
                 "prompt_prepend": "",
                 "temperature": 0,
@@ -59,7 +59,7 @@ def create_default_config():
             "doc": {
                 "model": "grok-3",
                 "role": "you are an expert in writing documentation",
-                "output": "output.txt",
+                "output": "output.json",
                 "json_out": "grk_doc_output.json",
                 "prompt_prepend": "",
                 "temperature": 0.7,
@@ -67,7 +67,7 @@ def create_default_config():
             "law": {
                 "model": "grok-4",
                 "role": "you are an expert lawyer, providing legal advice",
-                "output": "output.txt",
+                "output": "output.json",
                 "json_out": "grk_law_output.json",
                 "prompt_prepend": "write concise legal argumentation, prefer latex",
                 "temperature": 0.35,
@@ -75,7 +75,7 @@ def create_default_config():
             "psy": {
                 "model": "grok-4",
                 "role": "you are an expert professor in psychology",
-                "output": "output.txt",
+                "output": "output.json",
                 "json_out": "grk_psy_output.json",
                 "prompt_prepend": "",
                 "temperature": 0.3,
@@ -104,3 +104,4 @@ def create_default_config():
         click.echo("Default .grkrc with profiles created successfully.")
     except Exception as e:
         click.echo(f"Failed to create .grkrc: {str(e)}")
+
