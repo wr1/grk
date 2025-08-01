@@ -1,3 +1,5 @@
+"""CLI commands for interacting with Grok LLM."""
+
 import pytest
 from click.testing import CliRunner
 from pathlib import Path
@@ -64,7 +66,7 @@ def test_run_command_with_profile(runner, tmp_path, monkeypatch, profile, mocker
     mock_sample.content = f"Response for {profile}"
     mock_chat.sample.return_value = mock_sample
     mock_client.chat.create.return_value = mock_chat
-    mocker.patch("xai_sdk.Client", return_value=mock_client)
+    mocker.patch("grk.api.Client", return_value=mock_client)
 
     cmd = ["run", "input.txt", "Test prompt"]
     if profile != "default":

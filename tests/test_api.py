@@ -7,7 +7,7 @@ def test_call_grok_api_failure(mocker):
     mock_client = mocker.Mock()
     mock_client.chat = mocker.Mock()  # Mock the chat attribute
     mock_client.chat.create.side_effect = Exception("API error")  # Mock the create method
-    mocker.patch('xai_sdk.Client', return_value=mock_client)  # Patch Client to return the mock
+    mocker.patch('grk.api.Client', return_value=mock_client)  # Patch Client to return the mock
 
     with pytest.raises(click.ClickException) as exc_info:
         call_grok(

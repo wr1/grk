@@ -73,10 +73,14 @@ def run(file: str, message: str, profile: str = "default"):
             role_from_config,
             temperature,
         )
-        spinner = Spinner(
-            "dots", "[bold yellow] Waiting for API response...[/bold yellow]"
-        )
-        with Live(spinner, console=console, refresh_per_second=15, transient=True):
+        if console.is_terminal:
+            spinner = Spinner(
+                "dots", "[bold yellow] Waiting for API response...[/bold yellow]"
+            )
+            with Live(spinner, console=console, refresh_per_second=15, transient=True):
+                while not future.done():
+                    time.sleep(0.1)
+        else:
             while not future.done():
                 time.sleep(0.1)
         response = future.result()
