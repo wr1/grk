@@ -1,31 +1,31 @@
 """API interaction with Grok LLM."""
 
+from typing import List, Union
+
 from xai_sdk import Client
+from xai_sdk.chat import assistant, system, user
 import rich_click as click
-from xai_sdk.chat import system, user
 
 
 def call_grok(
-    file_content: str,
-    prompt: str,
+    messages: List[Union[system, user, assistant]],
     model: str,
     api_key: str,
-    system_message: str,
     temperature: float = 0,
 ) -> str:
-    """Call Grok API with content and prompt."""
+    """Call Grok API with a list of messages."""
     try:
         client = Client(api_key=api_key)
         chat = client.chat.create(
             model=model,
-            messages=[
-                system(system_message),
-                user(file_content),
-                user(prompt),
-            ],
+            messages=messages,
             temperature=temperature,
         )
-        return chat.sample().content
-        # return chat_response.choices[0].message.content  # Extract response content
+        response = chat.sample().content
+        if not isinstance(response, str):
+            raise ValueError("API response is not a string")
+        return response
     except Exception as e:
         raise click.ClickException(f"API request failed: {str(e)}")
+
+

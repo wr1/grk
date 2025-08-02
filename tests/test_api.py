@@ -9,8 +9,12 @@ def test_call_grok_api_failure(mocker):
     mock_client.chat.create.side_effect = Exception("API error")  # Mock the create method
     mocker.patch('grk.api.Client', return_value=mock_client)  # Patch Client to return the mock
 
+    messages = [
+        {"role": "system", "content": "python-programmer"},
+        {"role": "user", "content": "Test content"},
+        {"role": "user", "content": "Test prompt"},
+    ]
     with pytest.raises(click.ClickException) as exc_info:
-        call_grok(
-            "Test content", "Test prompt", "grok-3", "dummy_key", "python-programmer"
-        )
+        call_grok(messages, "grok-3", "dummy_key")
     assert "API request failed" in str(exc_info.value)
+
