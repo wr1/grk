@@ -44,11 +44,14 @@ def run_grok(
 
     try:
         input_data = json.loads(file_content)
-        is_cfold = (
-            isinstance(input_data, dict)
-            and "instructions" in input_data
-            and "files" in input_data
-        )
+        if isinstance(input_data, list):
+            input_data = {"instructions": [], "files": input_data}
+        elif isinstance(input_data, dict):
+            if "files" in input_data:
+                input_data["instructions"] = input_data.get("instructions", [])
+
+        is_cfold = isinstance(input_data, dict) and "instructions" in input_data and "files" in input_data
+
         if is_cfold:
             for instr in input_data["instructions"]:
                 role = instr["type"]
@@ -155,3 +158,4 @@ def run_grok(
             analyze_changes(input_data, response, console)
     except Exception as e:
         raise click.ClickException(f"Failed to write output: {str(e)}")
+

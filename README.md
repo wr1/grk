@@ -27,21 +27,21 @@ profiles:
     default:
         model: grok-4
         role: expert engineer and dev
-        output: output.txt
+        output: output.json
         json_out: /tmp/grok_output.json
         prompt_prepend: " "
         temperature: 0.1  
     law:
         model: grok-3
         role: lawyer, expert legal scholar
-        output: output.txt
+        output: output.json
         json_out: output.json
         prompt_prepend: ""
         temperature: 0.15
     docs:
         model: grok-4
         role: documentation-specialist
-        output: output.txt
+        output: output.json
         json_out: output.json
         prompt_prepend: "aim for conciseness and documenting use over implementation, "
         temperature: 0.7  
@@ -59,18 +59,18 @@ grk run <input_file> <prompt> [-p <profile>]  # Note: -p is the short form for -
 Chaining with [cfold](https://github.com/wr1/cfold) allows making whole codebase changes. 
 ```bash
 # fold the local python project into a text file
-cfold fold -o folded_project.txt
+cfold fold -o folded_project.json
 # run instructions on the codebase
-grk run folded_project.txt "change the CLI framework from argparse to click"  
+grk run folded_project.json "change the CLI framework from argparse to click"  
 # unfold the changes
-cfold unfold output.txt
+cfold unfold output.json
 ```
 This can be wrapped into a shell function for convenient terminal use, for example in `fish`: 
 ```shell
 function g 
-    cfold fold -o folded_project.txt
-    grk run folded_project.txt $argv    
-    cfold unfold output.txt
+    cfold fold -o folded_project.json
+    grk run folded_project.json $argv    
+    cfold unfold output.json
 end
 ```
 
@@ -87,3 +87,4 @@ MIT
 <!-- ## Documentation
 
 For detailed documentation, visit our [MkDocs site](./docs/index.md) or run `mkdocs serve` locally after installing dependencies with `uv add mkdocs mkdocs-material`. -->
+
