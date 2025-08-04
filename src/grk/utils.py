@@ -1,7 +1,8 @@
-"""Utility functions for Grok CLI."""
+"""Utility functions for Grok CLI, including caching helpers."""
 
 import json
 from rich.console import Console
+from pathlib import Path
 
 
 def analyze_changes(input_data: dict, response: str, console: Console):
@@ -20,7 +21,6 @@ def analyze_changes(input_data: dict, response: str, console: Console):
             console.print("[yellow]Response is not a recognized cfold format, skipping change analysis.[/yellow]")
             return
 
-        # Process output files
         output_files = {}
         deleted_files = []
         for f in output_files_list:
@@ -29,31 +29,14 @@ def analyze_changes(input_data: dict, response: str, console: Console):
                 deleted_files.append(path)
             elif "content" in f:
                 output_files[path] = f["content"]
-            else:
-                console.print(f"[yellow]Warning: File {path} has no content nor delete flag.[/yellow]")
 
-        # Handle legacy "# DELETE" if present
-        for path in list(output_files.keys()):
-            if output_files[path] == "# DELETE":
-                deleted_files.append(path)
-                del output_files[path]
-
-        # Process input files
         input_files = {}
-        for f in input_data["files"]:
+        for f in input_data.get("files", []):
             if not f.get("delete", False) and "content" in f:
                 input_files[f["path"]] = f["content"]
 
-        changed_files = [
-            path
-            for path in output_files
-            if path in input_files and output_files[path] != input_files[path]
-        ]
-        new_files = [
-            path
-            for path in output_files
-            if path not in input_files
-        ]
+        changed_files = [path for path in output_files if path in input_files and output_files[path] != input_files[path]]
+        new_files = [path for path in output_files if path not in input_files]
 
         console.print("[bold green]Suggested changes:[/bold green]")
         if changed_files:
@@ -77,7 +60,6 @@ def analyze_changes(input_data: dict, response: str, console: Console):
         else:
             console.print("No deleted files.")
     except json.JSONDecodeError:
-        console.print(
-            "[yellow]Response is not valid JSON, skipping change analysis.[/yellow]"
-        )
+        console.print("[yellow]Response is not valid JSON, skipping change analysis.[/yellow]")
+
 

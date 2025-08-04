@@ -2,9 +2,10 @@
 
 import rich_click as click
 import os
-from .config import load_config, create_default_config
+from .config import load_config
 from .runner import run_grok
 from .config_handler import list_configs
+from .core.session import start_interactive_session  # Import for interactive mode
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -25,7 +26,7 @@ def run(file: str, message: str, profile: str = "default"):
             "API key is required via XAI_API_KEY environment variable."
         )
     config = load_config(profile)
-    run_grok(file, message, config, api_key)
+    run_grok(file, message, config, api_key, profile)
 
 
 @main.command()
@@ -37,9 +38,23 @@ def list():
 @main.command()
 def init():
     """Initialize .grkrc with default profiles."""
-    create_default_config()
+    create_default_config()  # Note: This is defined in config.py
+
+
+@main.command()
+@click.option("-p", "--profile", default="default", help="The profile to use")
+def session(profile: str = "default"):
+    """Start an interactive session for multiple queries, maintaining cache."""
+    api_key = os.environ.get("XAI_API_KEY")
+    if not api_key:
+        raise click.ClickException(
+            "API key is required via XAI_API_KEY environment variable."
+        )
+    config = load_config(profile)
+    start_interactive_session(config, api_key, profile)
 
 
 if __name__ == "__main__":
     main()
+
 
