@@ -63,6 +63,7 @@ grk session q <prompt> [-o <output>] [-i <input_file>] [-l]  # -l to list sessio
 grk session down
 ```
 
+In session mode, responses are postprocessed: any explanatory messages are printed to the console, and the output file is cleaned to ensure valid JSON in {'files': [...]} format (if possible).
 
 ### Advanced use
 Chaining with [cfold](https://github.com/wr1/cfold) allows making whole codebase changes. 

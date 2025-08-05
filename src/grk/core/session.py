@@ -1,7 +1,8 @@
 """Core logic for managing daemon sessions and caching."""
 
 import json
-from typing import List, Union
+import re
+from typing import List, Union, Tuple
 from pathlib import Path
 import socket
 import os
@@ -66,16 +67,16 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                 response = call_grok(messages, model_used, api_key, temperature)
                 messages.append(assistant(response))
 
-                # Prepare for analysis
+                # Postprocess response
+                cleaned_response, extracted_message = postprocess_response(response)
+
+                # Prepare for analysis (use cleaned_response for summary and caching)
                 input_for_analysis = {"files": [dict(**f) for f in cached_codebase]}
-                summary = get_change_summary(input_for_analysis, response)
+                summary = get_change_summary(input_for_analysis, cleaned_response)
 
                 # Write output
-                response_to_parse = response.strip()
-                if response_to_parse.startswith("```json") and response_to_parse.endswith("```"):
-                    response_to_parse = response_to_parse[7:-3].strip()
                 try:
-                    output_data = json.loads(response_to_parse)
+                    output_data = json.loads(cleaned_response)
                     if isinstance(output_data, list):
                         output_data = {"files": output_data}
                     with Path(output).open("w") as f:
@@ -84,10 +85,11 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                         cached_codebase = apply_cfold_changes(cached_codebase, output_data["files"])
                         save_cached_codebase(cached_codebase)
                 except json.JSONDecodeError:
-                    Path(output).write_text(response)
+                    Path(output).write_text(response)  # Fallback to raw if still invalid
+                    summary = "No valid JSON detected; raw response saved. " + summary
 
-                # Send summary
-                conn.send(json.dumps({"summary": summary}).encode())
+                # Send summary and message
+                conn.send(json.dumps({"summary": summary, "message": extracted_message}).encode())
                 conn.close()
             else:
                 conn.close()
@@ -98,6 +100,47 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
         pid_file = Path(".grk_session.pid")
         if pid_file.exists():
             pid_file.unlink()
+
+def postprocess_response(response: str) -> Tuple[str, str]:
+    """Postprocess the response to extract/clean JSON and any message."""
+    response = response.strip()
+    extracted_message = ""
+
+    # Check for markdown code block
+    if response.startswith("```json") and response.endswith("```"):
+        response = response[7:-3].strip()
+    elif "```json" in response:
+        # Extract the block if embedded
+        match = re.search(r"```json\s*(.*?)\s*```", response, re.DOTALL)
+        if match:
+            response = match.group(1).strip()
+            extracted_message = response.replace(match.group(0), "").strip()
+
+    # Try to parse as JSON
+    try:
+        json_data = json.loads(response)
+        if isinstance(json_data, list):
+            return json.dumps({"files": json_data}, indent=2), extracted_message
+        elif isinstance(json_data, dict) and "files" in json_data:
+            return json.dumps(json_data, indent=2), extracted_message
+        else:
+            # Not a recognized format; treat as message
+            return "", response
+    except json.JSONDecodeError:
+        # Fallback: find the largest valid JSON substring (e.g., embedded object)
+        match = re.search(r"(\{.*?\}|\[.*?\])", response, re.DOTALL)
+        if match:
+            try:
+                json_data = json.loads(match.group(1))
+                extracted_message = response.replace(match.group(1), "").strip()
+                if isinstance(json_data, list):
+                    return json.dumps({"files": json_data}, indent=2), extracted_message
+                elif isinstance(json_data, dict) and "files" in json_data:
+                    return json.dumps(json_data, indent=2), extracted_message
+            except json.JSONDecodeError:
+                pass
+        # If no valid JSON, whole response is message
+        return "", response
 
 def load_cached_codebase() -> List[dict]:
     """Load the cached codebase from a local file."""

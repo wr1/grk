@@ -20,6 +20,8 @@ grk session q <prompt> [-o <output>] [-i <input_file>] [-l]  # -l to list sessio
 grk session down
 ```
 
+In session mode, responses are automatically postprocessed: explanatory messages are printed to the console, and the output file is cleaned to valid JSON (e.g., {'files': [...]}) if possible.
+
 ### Examples
 
 Run with a specific profile and input file (single-shot):

@@ -202,6 +202,10 @@ def session_q(
                 response = future.result().decode()
 
             data = json.loads(response)
+            if data.get("message"):
+                console.print(
+                    f"[bold green]Message from Grok:[/bold green] {data['message']}"
+                )
             console.print(f"[bold green]Summary:[/bold green] {data['summary']}")
             console.print(f"[bold green]Output written to:[/bold green] '{output}'")
     except ConnectionRefusedError:

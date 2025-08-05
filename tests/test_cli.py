@@ -107,4 +107,39 @@ def test_session_up_command(runner, tmp_path, monkeypatch, mocker):
     assert result.exit_code == 0
     assert "Session started with PID" in result.output
 
+def test_session_q_postprocessing(runner, tmp_path, monkeypatch, mocker):
+    """Test session q command with postprocessing of malformed responses."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("XAI_API_KEY", "dummy_key")
+    Path("initial.json").write_text('{"files": []}')
+
+    # Mock daemon_process and socket for testing postprocessing
+    mock_socket = mocker.Mock()
+    mock_socket.connect = mocker.Mock()
+    mock_socket.send = mocker.Mock()
+    mock_socket.recv = mocker.Mock(return_value=json.dumps({
+        "summary": "= No changes detected.",
+        "message": "Here's the update:"
+    }).encode())
+    mocker.patch("socket.socket", return_value=mock_socket)
+
+    result = runner.invoke(main, ["session", "q", "Test prompt", "-o", "__temp.json"])
+    assert result.exit_code == 0
+    assert "Message from Grok: Here's the update:" in result.output
+    assert "Summary: = No changes detected." in result.output
+    assert Path("__temp.json").exists()
+
+@pytest.mark.parametrize("raw_response, expected_cleaned, expected_message", [
+    ("[{\"path\": \"file.txt\"}]", "{\"files\": [{\"path\": \"file.txt\"}]}", ""),
+    ("Here's the update: ```json\n[{\"path\": \"file.txt\"}]\n```", "{\"files\": [{\"path\": \"file.txt\"}]}", "Here's the update:"),
+    ("Explanatory text {\"files\": [{\"path\": \"file.txt\"}]}", "{\"files\": [{\"path\": \"file.txt\"}]}", "Explanatory text"),
+    ("Invalid response without JSON", "", "Invalid response without JSON"),
+])
+def test_postprocess_response(raw_response, expected_cleaned, expected_message):
+    """Test postprocess_response function."""
+    from grk.core.session import postprocess_response
+    cleaned, message = postprocess_response(raw_response)
+    assert cleaned.replace("\n", "") == expected_cleaned.replace("\n", "")  # Ignore formatting
+    assert message == expected_message
+
 
