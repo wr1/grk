@@ -105,3 +105,4 @@ def create_default_config():
     except Exception as e:
         click.echo(f"Failed to create .grkrc: {str(e)}")
 
+

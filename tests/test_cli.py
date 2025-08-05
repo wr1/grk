@@ -17,7 +17,18 @@ def test_main_help(runner):
     result = runner.invoke(main, ["--help"])
     assert result.exit_code == 0
     assert "CLI tool to interact with Grok LLM." in result.output
+    assert "init" in result.output
+    assert "list" in result.output
+    assert "run" in result.output
+    assert "session" in result.output
 
+def test_session_help(runner):
+    """Test session subgroup help."""
+    result = runner.invoke(main, ["session", "--help"])
+    assert result.exit_code == 0
+    assert "up" in result.output
+    assert "q" in result.output
+    assert "down" in result.output
 
 def test_init_command(runner, tmp_path, monkeypatch):
     """Test init command to create default .grkrc file."""
@@ -25,7 +36,6 @@ def test_init_command(runner, tmp_path, monkeypatch):
     result = runner.invoke(main, ["init"])
     assert result.exit_code == 0
     assert Path(".grkrc").exists()
-
 
 def test_run_command_no_api_key(runner, tmp_path, monkeypatch):
     """Test run command without API key set."""
@@ -35,7 +45,6 @@ def test_run_command_no_api_key(runner, tmp_path, monkeypatch):
     result = runner.invoke(main, ["run", "input.txt", "Test prompt"])
     assert result.exit_code != 0
     assert "API key is required" in result.output
-
 
 def test_run_command_file_not_found(runner, tmp_path, monkeypatch):
     """Test run command with non-existent input file."""
@@ -86,5 +95,16 @@ def test_run_command_with_profile(runner, tmp_path, monkeypatch, profile, expect
     # Check output files
     assert Path("output.json").exists()  # Adjusted to match default
     assert Path(expected_json_out).exists()  # Adjusted to match default
+
+
+def test_session_up_command(runner, tmp_path, monkeypatch, mocker):
+    """Test session up command (stubbed for process start)."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("XAI_API_KEY", "dummy_key")
+    Path("initial.json").write_text('{"files": []}')
+    mocker.patch("multiprocessing.Process")
+    result = runner.invoke(main, ["session", "up", "initial.json"])
+    assert result.exit_code == 0
+    assert "Session started with PID" in result.output
 
 

@@ -29,3 +29,4 @@ def call_grok(
         raise click.ClickException(f"API request failed: {str(e)}")
 
 
+

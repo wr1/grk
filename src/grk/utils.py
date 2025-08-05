@@ -93,3 +93,4 @@ def get_change_summary(input_data: dict, response: str) -> str:
         return "Response not in JSON format; no changes applied."
 
 
+

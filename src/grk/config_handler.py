@@ -32,3 +32,4 @@ def list_configs():
     except Exception as e:
         click.echo(f"Warning: Failed to load .grkrc: {str(e)}")
 
+
