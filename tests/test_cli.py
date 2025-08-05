@@ -102,10 +102,14 @@ def test_session_up_command(runner, tmp_path, monkeypatch, mocker):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("XAI_API_KEY", "dummy_key")
     Path("initial.json").write_text('{"files": []}')
-    mocker.patch("multiprocessing.Process")
+    mock_process = mocker.patch("multiprocessing.Process")
+    mock_process.return_value.pid = 12345  # Mock pid to be serializable
+    mock_process.return_value.start = mocker.Mock()  # Mock start method
     result = runner.invoke(main, ["session", "up", "initial.json"])
     assert result.exit_code == 0
-    assert "Session started with PID" in result.output
+    assert "Session started with PID 12345" in result.output
+    assert Path(".grk_session.pid").exists()
+    assert Path(".grk_session.json").exists()
 
 def test_session_q_postprocessing(runner, tmp_path, monkeypatch, mocker):
     """Test session q command with postprocessing of malformed responses."""

@@ -18,12 +18,10 @@ import time
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
-@click.rich_config(
-    help_config=click.RichHelpConfiguration(
-        # headers_style="bold cyan",
-        use_markdown=True
-    )
-)
+@click.rich_config(help_config=click.RichHelpConfiguration(
+    headers_style="bold cyan",
+    use_markdown=True
+))
 def main():
     """**grk**: CLI tool to interact with Grok LLM.\n\nUse single-shot commands for one-off tasks or session commands for interactive, stateful interactions."""
     pass
@@ -34,12 +32,10 @@ def init():
     """Initialize .grkrc with default profiles."""
     create_default_config()  # Note: This is defined in config.py
 
-
 @main.command()
 def list():
     """List the configurations from .grkrc with YAML syntax highlighting."""
     list_configs()
-
 
 @main.command()
 @click.argument("file", type=click.Path(exists=True, dir_okay=False), required=True)
@@ -55,13 +51,9 @@ def run(file: str, message: str, profile: str = "default"):
     config = load_config(profile)
     run_grok(file, message, config, api_key, profile)
 
-
-@main.group(
-    help="**Interactive Session Commands**\n\nManage background sessions for stateful, multi-query interactions with Grok."
-)
+@main.group(help="**Interactive Session Commands**\n\nManage background sessions for stateful, multi-query interactions with Grok.")
 def session():
     pass
-
 
 @session.command("up")
 @click.argument("file", type=click.Path(exists=True, dir_okay=False), required=True)
@@ -70,9 +62,7 @@ def session_up(file: str, profile: str = "default"):
     """Start a background session process with initial codebase."""
     api_key = os.environ.get("XAI_API_KEY")
     if not api_key:
-        raise click.ClickException(
-            "API key required via XAI_API_KEY environment variable."
-        )
+        raise click.ClickException("API key required via XAI_API_KEY environment variable.")
     config = load_config(profile)
     pid_file = Path(".grk_session.pid")
     session_file = Path(".grk_session.json")
@@ -89,27 +79,15 @@ def session_up(file: str, profile: str = "default"):
     p = multiprocessing.Process(target=daemon_process, args=(file, config, api_key))
     p.start()
     pid_file.write_text(str(p.pid))
-    session_file.write_text(
-        json.dumps({"pid": p.pid, "profile": profile, "initial_file": file})
-    )
+    session_file.write_text(json.dumps({"pid": p.pid, "profile": profile, "initial_file": file}))
     click.echo(f"Session started with PID {p.pid}")
-
 
 @session.command("q")
 @click.argument("message", required=False)
 @click.option("-o", "--output", default="__temp.json", help="Output file")
-@click.option(
-    "-i",
-    "--input",
-    type=click.Path(exists=True, dir_okay=False),
-    help="Additional input file",
-)
-@click.option(
-    "-l", "--list", is_flag=True, help="List file names and prompt stack of the session"
-)
-def session_q(
-    message: str, output: str = "__temp.json", input: str = None, list: bool = False
-):
+@click.option("-i", "--input", type=click.Path(exists=True, dir_okay=False), help="Additional input file")
+@click.option("-l", "--list", is_flag=True, help="List file names and prompt stack of the session")
+def session_q(message: str, output: str = "__temp.json", input: str = None, list: bool = False):
     """Send a query to the background session or list session details with -l."""
     console = Console()
     pid_file = Path(".grk_session.pid")
@@ -130,21 +108,15 @@ def session_q(
 
         if list:
             if message:
-                console.print(
-                    "[yellow]Warning: Message ignored when using -l flag.[/yellow]"
-                )
+                console.print("[yellow]Warning: Message ignored when using -l flag.[/yellow]")
             request = {"cmd": "list"}
             client.send(json.dumps(request).encode())
 
             with ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(client.recv, 4096)
-                spinner = Spinner(
-                    "dots", "[bold yellow] Fetching session details...[/bold yellow]"
-                )
+                spinner = Spinner("dots", "[bold yellow] Fetching session details...[/bold yellow]")
                 if console.is_terminal:
-                    with Live(
-                        spinner, console=console, refresh_per_second=15, transient=True
-                    ):
+                    with Live(spinner, console=console, refresh_per_second=15, transient=True):
                         while not future.done():
                             time.sleep(0.1)
                 else:
@@ -166,9 +138,7 @@ def session_q(
         else:
             if not message:
                 raise click.ClickException("Message is required unless using -l flag")
-            console.print(
-                "[bold green]Querying grk session[/bold green] with the following settings:"
-            )
+            console.print("[bold green]Querying grk session[/bold green] with the following settings:")
             console.print(f" Profile: [cyan]{profile}[/cyan]")
             console.print(f" Initial file: [cyan]{initial_file}[/cyan]")
             console.print(f" Prompt: [cyan]{message}[/cyan]")
@@ -177,23 +147,14 @@ def session_q(
                 console.print(f" Additional input file: [cyan]{input}[/cyan]")
 
             input_content = Path(input).read_text() if input else None
-            request = {
-                "cmd": "query",
-                "prompt": message,
-                "output": output,
-                "input_content": input_content,
-            }
+            request = {"cmd": "query", "prompt": message, "output": output, "input_content": input_content}
             client.send(json.dumps(request).encode())
 
             with ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(client.recv, 4096)
-                spinner = Spinner(
-                    "dots", "[bold yellow] Waiting for response...[/bold yellow]"
-                )
+                spinner = Spinner("dots", "[bold yellow] Waiting for response...[/bold yellow]")
                 if console.is_terminal:
-                    with Live(
-                        spinner, console=console, refresh_per_second=15, transient=True
-                    ):
+                    with Live(spinner, console=console, refresh_per_second=15, transient=True):
                         while not future.done():
                             time.sleep(0.1)
                 else:
@@ -203,16 +164,13 @@ def session_q(
 
             data = json.loads(response)
             if data.get("message"):
-                console.print(
-                    f"[bold green]Message from Grok:[/bold green] {data['message']}"
-                )
+                console.print(f"[bold green]Message from Grok:[/bold green] {data['message']}")
             console.print(f"[bold green]Summary:[/bold green] {data['summary']}")
             console.print(f"[bold green]Output written to:[/bold green] '{output}'")
     except ConnectionRefusedError:
         raise click.ClickException("Session not responding")
     finally:
         client.close()
-
 
 @session.command("down")
 def session_down():
@@ -242,6 +200,8 @@ def session_down():
         except OSError:
             pass
 
-
 if __name__ == "__main__":
     main()
+
+
+
