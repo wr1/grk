@@ -1,62 +1,92 @@
-"""Core logic for managing interactive sessions and caching."""
+"""Core logic for managing daemon sessions and caching."""
 
 import json
 from typing import List, Union
 from pathlib import Path
+import socket
+import os
 import click
 from rich.console import Console
-from ..api import call_grok  # Import API call
+from ..api import call_grok
 from ..models import ProfileConfig
-# from ..utils import analyze_changes, load_cached_codebase, save_cached_codebase
+from ..utils import get_change_summary
 from xai_sdk.chat import assistant, system, user
 
+def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
+    """Run the background daemon process for session management."""
+    try:
+        # Load initial codebase from file
+        initial_data = json.loads(Path(initial_file).read_text())
+        cached_codebase = initial_data.get("files", [])
+        save_cached_codebase(cached_codebase)
 
-def start_interactive_session(config: ProfileConfig, api_key: str, profile: str):
-    """Start an interactive session for multiple queries, using cached codebase."""
-    console = Console()
-    console.print("[bold green]Starting interactive session. Type 'exit' to quit.[/bold green]")
-    messages: List[Union[system, user, assistant]] = []  # Maintain session messages
-    cached_codebase = load_cached_codebase()  # Load cached files
+        messages: List[Union[system, user, assistant]] = []
+        role_from_config = config.role or "you are an expert engineer and developer"
+        messages.append(system(role_from_config))
+        files_json = json.dumps(cached_codebase, indent=2)
+        messages.append(user(f"Current codebase files:\n```json\n{files_json}\n```"))
 
-    while True:
-        try:
-            user_input = click.prompt("Enter query (or 'exit'): ")
-            if user_input.lower() == 'exit':
-                console.print("[bold green]Session ended.[/bold green]")
-                save_cached_codebase(cached_codebase)  # Save any updates to cache
+        model_used = config.model or "grok-3-mini-fast"
+        temperature = config.temperature or 0
+
+        # Set up server
+        PORT = 61234
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.bind(("127.0.0.1", PORT))
+        server.listen(1)
+
+        while True:
+            conn, addr = server.accept()
+            data = conn.recv(4096).decode('utf-8')
+            if not data:
+                conn.close()
+                continue
+            request = json.loads(data)
+            cmd = request.get("cmd")
+            if cmd == "down":
+                conn.send("Shutting down".encode())
+                conn.close()
                 break
+            elif cmd == "query":
+                prompt = request["prompt"]
+                output = request.get("output", "__temp.json")
+                input_content = request.get("input_content")
+                if input_content:
+                    messages.append(user(f"Additional input:\n```txt\n{input_content}\n```"))
+                messages.append(user(prompt))
+                response = call_grok(messages, model_used, api_key, temperature)
+                messages.append(assistant(response))
 
-            # Build messages with session context
-            full_prompt = user_input  # For simplicity; could prepend config prompt
-            if not messages:
-                role_from_config = config.role or "you are an expert engineer"
-                messages.append(system(role_from_config))
-                # Add cached codebase to initial messages if needed
-                if cached_codebase:
-                    files_json = json.dumps(cached_codebase, indent=2)
-                    messages.append(user(f"Current codebase files:\n```json\n{files_json}\n```"))
-            messages.append(user(full_prompt))
+                # Prepare for analysis
+                input_for_analysis = {"files": [dict(**f) for f in cached_codebase]}
+                summary = get_change_summary(input_for_analysis, response)
 
-            model_used = config.model or "grok-3-mini-fast"
-            temperature = config.temperature or 0
+                # Write output
+                response_to_parse = response.strip()
+                if response_to_parse.startswith("```json") and response_to_parse.endswith("```"):
+                    response_to_parse = response_to_parse[7:-3].strip()
+                try:
+                    output_data = json.loads(response_to_parse)
+                    with Path(output).open("w") as f:
+                        json.dump(output_data, f, indent=2)
+                    if "files" in output_data:
+                        cached_codebase = apply_cfold_changes(cached_codebase, output_data["files"])
+                        save_cached_codebase(cached_codebase)
+                except json.JSONDecodeError:
+                    Path(output).write_text(response)
 
-            response = call_grok(messages, model_used, api_key, temperature)
-            console.print(f"[bold blue]Response:[/bold blue] {response}")
-
-            # Update cached codebase if response is in cfold format
-            try:
-                response_data = json.loads(response.strip())
-                if isinstance(response_data, dict) and "files" in response_data:
-                    cached_codebase = apply_cfold_changes(cached_codebase, response_data["files"])
-                    save_cached_codebase(cached_codebase)
-                    analyze_changes({"files": cached_codebase}, response, console)
-            except json.JSONDecodeError:
-                console.print("[yellow]Response not in JSON format; not updating cache.[/yellow]")
-
-            messages.append(assistant(response))  # Add response to session for context
-        except Exception as e:
-            console.print(f"[bold red]Error: {str(e)}[/bold red]")
-
+                # Send summary
+                conn.send(json.dumps({"summary": summary}).encode())
+                conn.close()
+            else:
+                conn.close()
+    except Exception as e:
+        print(f"Daemon error: {str(e)}")
+    finally:
+        server.close()
+        pid_file = Path(".grk_session.pid")
+        if pid_file.exists():
+            pid_file.unlink()
 
 def load_cached_codebase() -> List[dict]:
     """Load the cached codebase from a local file."""
@@ -68,7 +98,6 @@ def load_cached_codebase() -> List[dict]:
             click.echo("Warning: Cache file is corrupted. Starting with empty cache.")
     return []  # Return empty list if no cache
 
-
 def save_cached_codebase(codebase: List[dict]):
     """Save the codebase to a local cache file."""
     cache_file = Path(".grk_cache.json")
@@ -76,7 +105,6 @@ def save_cached_codebase(codebase: List[dict]):
         cache_file.write_text(json.dumps(codebase, indent=2))
     except Exception as e:
         click.echo(f"Warning: Failed to save cache: {str(e)}")
-
 
 def apply_cfold_changes(existing: List[dict], changes: List[dict]) -> List[dict]:
     """Apply cfold changes to the existing codebase."""
@@ -96,5 +124,4 @@ def apply_cfold_changes(existing: List[dict], changes: List[dict]) -> List[dict]
             if not change.get("delete", False):
                 updated.append(change)  # Add new file
     return updated
-
 

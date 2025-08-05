@@ -4,7 +4,6 @@ import json
 from rich.console import Console
 from pathlib import Path
 
-
 def analyze_changes(input_data: dict, response: str, console: Console):
     """Analyze and print changes if response is cfold format."""
     try:
@@ -62,4 +61,31 @@ def analyze_changes(input_data: dict, response: str, console: Console):
     except json.JSONDecodeError:
         console.print("[yellow]Response is not valid JSON, skipping change analysis.[/yellow]")
 
+def get_change_summary(input_data: dict, response: str) -> str:
+    """Get a string summary of changes from response in cfold format."""
+    try:
+        response_to_parse = response.strip()
+        if response_to_parse.startswith("```json") and response_to_parse.endswith("```"):
+            response_to_parse = response_to_parse[7:-3].strip()
+        output_data = json.loads(response_to_parse)
+        if "files" not in output_data:
+            return "No file changes detected."
+        output_files_list = output_data["files"]
+        output_files = {f["path"]: f["content"] for f in output_files_list if not f.get("delete", False) and "content" in f}
+        deleted_files = [f["path"] for f in output_files_list if f.get("delete", False)]
+        input_files = {f["path"]: f["content"] for f in input_data.get("files", []) if not f.get("delete", False) and "content" in f}
+        changed_files = [path for path in output_files if path in input_files and output_files[path] != input_files[path]]
+        new_files = [path for path in output_files if path not in input_files]
+        summary_lines = []
+        if changed_files:
+            summary_lines.append(f"modified files {', '.join(changed_files)}")
+        if new_files:
+            summary_lines.append(f"new files {', '.join(new_files)}")
+        if deleted_files:
+            summary_lines.append(f"deleted files {', '.join(deleted_files)}")
+        if not summary_lines:
+            return "= No changes detected."
+        return "= " + ", ".join(summary_lines)
+    except json.JSONDecodeError:
+        return "Response not in JSON format; no changes applied."
 
