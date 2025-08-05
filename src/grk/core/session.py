@@ -47,6 +47,15 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                 conn.send("Shutting down".encode())
                 conn.close()
                 break
+            elif cmd == "list":
+                files = [f["path"] for f in cached_codebase]
+                prompts = []
+                for msg in messages[2:]:  # Skip initial system and files message
+                    if isinstance(msg, user):
+                        prompts.append(msg.content)
+                response_data = {"files": files, "prompts": prompts}
+                conn.send(json.dumps(response_data).encode())
+                conn.close()
             elif cmd == "query":
                 prompt = request["prompt"]
                 output = request.get("output", "__temp.json")
@@ -67,6 +76,8 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                     response_to_parse = response_to_parse[7:-3].strip()
                 try:
                     output_data = json.loads(response_to_parse)
+                    if isinstance(output_data, list):
+                        output_data = {"files": output_data}
                     with Path(output).open("w") as f:
                         json.dump(output_data, f, indent=2)
                     if "files" in output_data:
@@ -124,4 +135,5 @@ def apply_cfold_changes(existing: List[dict], changes: List[dict]) -> List[dict]
             if not change.get("delete", False):
                 updated.append(change)  # Add new file
     return updated
+
 

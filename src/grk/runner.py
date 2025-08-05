@@ -128,6 +128,8 @@ def run_grok(
                 response_to_parse = inner
             try:
                 output_data = json.loads(response_to_parse)
+                if isinstance(output_data, list):
+                    output_data = {"files": output_data}
                 with Path(output_file).open("w") as f:
                     json.dump(output_data, f, indent=2)
             except json.JSONDecodeError:
@@ -158,4 +160,5 @@ def run_grok(
             analyze_changes(input_data, response, console)
     except Exception as e:
         raise click.ClickException(f"Failed to write output: {str(e)}")
+
 

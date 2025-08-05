@@ -77,11 +77,12 @@ def up(file: str, profile: str = "default"):
     click.echo(f"Session started with PID {p.pid}")
 
 @main.command("q")
-@click.argument("message", required=True)
+@click.argument("message", required=False)
 @click.option("-o", "--output", default="__temp.json", help="Output file")
 @click.option("-i", "--input", type=click.Path(exists=True, dir_okay=False), help="Additional input file")
-def q(message: str, output: str = "__temp.json", input: str = None):
-    """Send a query to the background session."""
+@click.option("-l", "--list", is_flag=True, help="List file names and prompt stack of the session")
+def q(message: str, output: str = "__temp.json", input: str = None, list: bool = False):
+    """Send a query to the background session or list session details with -l."""
     console = Console()
     pid_file = Path(".grk_session.pid")
     session_file = Path(".grk_session.json")
@@ -95,36 +96,69 @@ def q(message: str, output: str = "__temp.json", input: str = None):
         profile = "unknown"
         initial_file = "unknown"
 
-    console.print("[bold green]Querying grk session[/bold green] with the following settings:")
-    console.print(f" Profile: [cyan]{profile}[/cyan]")
-    console.print(f" Initial file: [cyan]{initial_file}[/cyan]")
-    console.print(f" Prompt: [cyan]{message}[/cyan]")
-    console.print(f" Output: [cyan]{output}[/cyan]")
-    if input:
-        console.print(f" Additional input file: [cyan]{input}[/cyan]")
-
-    input_content = Path(input).read_text() if input else None
-    request = {"cmd": "query", "prompt": message, "output": output, "input_content": input_content}
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         client.connect(("127.0.0.1", 61234))
-        client.send(json.dumps(request).encode())
 
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(client.recv, 4096)
-            spinner = Spinner("dots", "[bold yellow] Waiting for response...[/bold yellow]")
-            if console.is_terminal:
-                with Live(spinner, console=console, refresh_per_second=15, transient=True):
+        if list:
+            if message:
+                console.print("[yellow]Warning: Message ignored when using -l flag.[/yellow]")
+            request = {"cmd": "list"}
+            client.send(json.dumps(request).encode())
+
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(client.recv, 4096)
+                spinner = Spinner("dots", "[bold yellow] Fetching session details...[/bold yellow]")
+                if console.is_terminal:
+                    with Live(spinner, console=console, refresh_per_second=15, transient=True):
+                        while not future.done():
+                            time.sleep(0.1)
+                else:
                     while not future.done():
                         time.sleep(0.1)
-            else:
-                while not future.done():
-                    time.sleep(0.1)
-            response = future.result().decode()
+                response = future.result().decode()
 
-        data = json.loads(response)
-        console.print(f"[bold green]Summary:[/bold green] {data['summary']}")
-        console.print(f"[bold green]Output written to:[/bold green] '{output}'")
+            data = json.loads(response)
+            console.print("[bold green]Session Details:[/bold green]")
+            console.print(f" Profile: [cyan]{profile}[/cyan]")
+            console.print(f" Initial file: [cyan]{initial_file}[/cyan]")
+            console.print("[bold green]Current Files:[/bold green]")
+            for f in data.get("files", []):
+                console.print(f" - {f}")
+            console.print("[bold green]Prompt Stack:[/bold green]")
+            for i, p in enumerate(data.get("prompts", []), 1):
+                truncated = p[:100] + "..." if len(p) > 100 else p
+                console.print(f" {i}: {truncated}")
+        else:
+            if not message:
+                raise click.ClickException("Message is required unless using -l flag")
+            console.print("[bold green]Querying grk session[/bold green] with the following settings:")
+            console.print(f" Profile: [cyan]{profile}[/cyan]")
+            console.print(f" Initial file: [cyan]{initial_file}[/cyan]")
+            console.print(f" Prompt: [cyan]{message}[/cyan]")
+            console.print(f" Output: [cyan]{output}[/cyan]")
+            if input:
+                console.print(f" Additional input file: [cyan]{input}[/cyan]")
+
+            input_content = Path(input).read_text() if input else None
+            request = {"cmd": "query", "prompt": message, "output": output, "input_content": input_content}
+            client.send(json.dumps(request).encode())
+
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(client.recv, 4096)
+                spinner = Spinner("dots", "[bold yellow] Waiting for response...[/bold yellow]")
+                if console.is_terminal:
+                    with Live(spinner, console=console, refresh_per_second=15, transient=True):
+                        while not future.done():
+                            time.sleep(0.1)
+                else:
+                    while not future.done():
+                        time.sleep(0.1)
+                response = future.result().decode()
+
+            data = json.loads(response)
+            console.print(f"[bold green]Summary:[/bold green] {data['summary']}")
+            console.print(f"[bold green]Output written to:[/bold green] '{output}'")
     except ConnectionRefusedError:
         raise click.ClickException("Session not responding")
     finally:

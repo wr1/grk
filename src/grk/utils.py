@@ -68,9 +68,12 @@ def get_change_summary(input_data: dict, response: str) -> str:
         if response_to_parse.startswith("```json") and response_to_parse.endswith("```"):
             response_to_parse = response_to_parse[7:-3].strip()
         output_data = json.loads(response_to_parse)
-        if "files" not in output_data:
-            return "No file changes detected."
-        output_files_list = output_data["files"]
+        if isinstance(output_data, list):
+            output_files_list = output_data
+        elif isinstance(output_data, dict) and "files" in output_data:
+            output_files_list = output_data["files"]
+        else:
+            return "= No file changes detected."
         output_files = {f["path"]: f["content"] for f in output_files_list if not f.get("delete", False) and "content" in f}
         deleted_files = [f["path"] for f in output_files_list if f.get("delete", False)]
         input_files = {f["path"]: f["content"] for f in input_data.get("files", []) if not f.get("delete", False) and "content" in f}
@@ -88,4 +91,5 @@ def get_change_summary(input_data: dict, response: str) -> str:
         return "= " + ", ".join(summary_lines)
     except json.JSONDecodeError:
         return "Response not in JSON format; no changes applied."
+
 
