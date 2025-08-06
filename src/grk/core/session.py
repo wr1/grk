@@ -157,7 +157,7 @@ def postprocess_response(response: str) -> Tuple[str, str]:
             return "", original_response
     except json.JSONDecodeError:
         # Fallback: find the largest valid JSON substring (e.g., embedded object)
-        match = re.search(r"(\{.*?\}|\[.*?\])", original_response, re.DOTALL)
+        match = re.search(r"(\{.*\}|\[.*\])", original_response, re.DOTALL)
         if match:
             try:
                 json_data = json.loads(match.group(1))
