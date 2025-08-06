@@ -84,7 +84,7 @@ def session_up(file: str, profile: str = "default"):
             session_file.unlink(missing_ok=True)
 
     # Serialize config and args for subprocess
-    config_dict = config.dict(exclude_none=True)
+    config_dict = config.model_dump(exclude_none=True)
     config_json = json.dumps(config_dict)
     args = json.dumps({"file": file, "config_json": config_json, "api_key": api_key})
     code = f"""
