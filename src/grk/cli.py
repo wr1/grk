@@ -114,7 +114,7 @@ def session_up(file: str, profile: str = "default"):
     click.echo(f"Session started with PID {pid}")
 
 
-@session.command("q")
+@session.command("msg")
 @click.argument("message", required=False)
 @click.option("-o", "--output", default="__temp.json", help="Output file")
 @click.option(
@@ -126,10 +126,10 @@ def session_up(file: str, profile: str = "default"):
 @click.option(
     "-l", "--list", is_flag=True, help="List file names and prompt stack of the session"
 )
-def session_q(
+def session_msg(
     message: str, output: str = "__temp.json", input: str = None, list: bool = False
 ):
-    """Send a query to the background session or list session details with -l."""
+    """Send a message to the background session or list session details with -l."""
     console = Console()
     pid_file = Path(".grk_session.pid")
     session_file = Path(".grk_session.json")

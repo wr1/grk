@@ -1,6 +1,8 @@
 """Utility functions for Grok CLI, including caching helpers."""
 
 import json
+import difflib
+from collections import defaultdict
 from rich.console import Console
 from pathlib import Path
 
@@ -62,7 +64,7 @@ def analyze_changes(input_data: dict, response: str, console: Console):
         console.print("[yellow]Response is not valid JSON, skipping change analysis.[/yellow]")
 
 def get_change_summary(input_data: dict, response: str) -> str:
-    """Get a string summary of changes from response in cfold format."""
+    """Get a detailed string summary of changes from response in cfold format, including file tree and diffs."""
     try:
         response_to_parse = response.strip()
         if response_to_parse.startswith("```json") and response_to_parse.endswith("```"):
@@ -79,16 +81,56 @@ def get_change_summary(input_data: dict, response: str) -> str:
         input_files = {f["path"]: f["content"] for f in input_data.get("files", []) if not f.get("delete", False) and "content" in f}
         changed_files = [path for path in output_files if path in input_files and output_files[path] != input_files[path]]
         new_files = [path for path in output_files if path not in input_files]
-        summary_lines = []
-        if changed_files:
-            summary_lines.append(f"modified files {', '.join(changed_files)}")
-        if new_files:
-            summary_lines.append(f"new files {', '.join(new_files)}")
-        if deleted_files:
-            summary_lines.append(f"deleted files {', '.join(deleted_files)}")
-        if not summary_lines:
+        all_affected = changed_files + new_files + deleted_files
+        if not all_affected:
             return "= No changes detected."
-        return "= " + ", ".join(summary_lines)
+
+        # Build file tree
+        tree = defaultdict(list)
+        for path in all_affected:
+            parts = path.split('/')
+            current = tree
+            for part in parts[:-1]:
+                if part not in current:
+                    current[part] = defaultdict(list)
+                current = current[part]
+            current[parts[-1]] = path  # Leaf is the full path
+
+        def build_tree_str(node, prefix=""):
+            lines = []
+            items = sorted(node.items())
+            for i, (key, value) in enumerate(items):
+                is_last = i == len(items) - 1
+                if isinstance(value, defaultdict):
+                    lines.append(f"{prefix}{'└── ' if is_last else '├── '}{key}/")
+                    lines.extend(build_tree_str(value, prefix + ('    ' if is_last else '│   ')))
+                else:
+                    status = " (modified)" if value in changed_files else " (new)" if value in new_files else " (deleted)"
+                    lines.append(f"{prefix}{'└── ' if is_last else '├── '}{key}{status}")
+            return lines
+
+        tree_str = "\n".join(build_tree_str(tree))
+
+        # Build diffs for changed files
+        diff_strs = []
+        for path in changed_files:
+            old_lines = input_files[path].splitlines()
+            new_lines = output_files[path].splitlines()
+            diff = difflib.unified_diff(old_lines, new_lines, fromfile=path + " (old)", tofile=path + " (new)")
+            diff_str = "\n".join(diff)
+            diff_strs.append(f"Diff for {path}:\n{diff_str}\n")
+
+        summary_lines = [tree_str]
+        if diff_strs:
+            summary_lines.append("\nDetailed diffs:")
+            summary_lines.extend(diff_strs)
+
+        if new_files:
+            summary_lines.append(f"New files: {', '.join(new_files)}")
+        if deleted_files:
+            summary_lines.append(f"Deleted files: {', '.join(deleted_files)}")
+
+        return "\n".join(summary_lines)
     except json.JSONDecodeError:
         return "Response not in JSON format; no changes applied."
 
