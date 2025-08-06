@@ -58,9 +58,9 @@ grk run <input_file> <prompt> [-p <profile>]  # Note: -p is the short form for -
 
 ### Interactive (Session-Based) Commands
 ```bash
-grk session up <initial_file> [-p <profile>]
-grk session q <prompt> [-o <output>] [-i <input_file>] [-l]  # -l to list session details
-grk session down
+grk up <initial_file> [-p <profile>]
+grk q <prompt> [-o <output>] [-i <input_file>] [-l]  # -l to list session details
+grk down
 ```
 
 In session mode, responses are postprocessed: any explanatory messages are printed to the console, and the output file is cleaned to ensure valid JSON in {'files': [...]} format (if possible).
@@ -97,5 +97,6 @@ MIT
 <!-- ## Documentation
 
 For detailed documentation, visit our [MkDocs site](./docs/index.md) or run `mkdocs serve` locally after installing dependencies with `uv add mkdocs mkdocs-material`. -->
+
 
 

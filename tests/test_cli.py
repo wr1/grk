@@ -21,15 +21,8 @@ def test_main_help(runner):
     assert "init" in result.output
     assert "list" in result.output
     assert "run" in result.output
-    assert "session" in result.output
-
-
-def test_session_help(runner):
-    """Test session subgroup help."""
-    result = runner.invoke(main, ["session", "--help"])
-    assert result.exit_code == 0
     assert "up" in result.output
-    assert "msg" in result.output
+    assert "q" in result.output
     assert "down" in result.output
 
 
@@ -114,15 +107,15 @@ def test_session_up_command(runner, tmp_path, monkeypatch, mocker):
     Path("initial.json").write_text('{"files": []}')
     mock_popen = mocker.patch("subprocess.Popen")
     mock_popen.return_value.pid = 12345  # Mock pid
-    result = runner.invoke(main, ["session", "up", "initial.json"])
+    result = runner.invoke(main, ["up", "initial.json"])
     assert result.exit_code == 0
     assert "Session started with PID 12345" in result.output
     assert Path(".grk_session.pid").exists()
     assert Path(".grk_session.json").exists()
 
 
-def test_session_msg_postprocessing(runner, tmp_path, monkeypatch, mocker):
-    """Test session msg command with postprocessing of malformed responses."""
+def test_session_q_postprocessing(runner, tmp_path, monkeypatch, mocker):
+    """Test session q command with postprocessing of malformed responses."""
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("XAI_API_KEY", "dummy_key")
     Path("initial.json").write_text('{"files": []}')
@@ -142,7 +135,7 @@ def test_session_msg_postprocessing(runner, tmp_path, monkeypatch, mocker):
     mock_socket.recv.side_effect = [length_bytes, data_bytes]
     mocker.patch("socket.socket", return_value=mock_socket)
 
-    result = runner.invoke(main, ["session", "msg", "Test prompt", "-o", "__temp.json"])
+    result = runner.invoke(main, ["q", "Test prompt", "-o", "__temp.json"])
     assert result.exit_code == 0
     assert "Message from Grok: Here's the update:" in result.output
     assert "Summary: = No changes detected." in result.output
@@ -174,5 +167,6 @@ def test_postprocess_response(raw_response, expected_cleaned, expected_message):
         "\n", ""
     )  # Ignore formatting
     assert message == expected_message
+
 
 

@@ -15,9 +15,9 @@ grk run <input_file> <prompt> [-p <profile>]  # Note: -p is the short form for -
 Start a background session, query it multiple times, and shut it down:
 
 ```bash
-grk session up <initial_file> [-p <profile>]
-grk session q <prompt> [-o <output>] [-i <input_file>] [-l]  # -l to list session details
-grk session down
+grk up <initial_file> [-p <profile>]
+grk q <prompt> [-o <output>] [-i <input_file>] [-l]  # -l to list session details
+grk down
 ```
 
 In session mode, responses are automatically postprocessed: explanatory messages are printed to the console, and the output file is cleaned to valid JSON (e.g., {'files': [...]}) if possible.
@@ -33,10 +33,10 @@ grk run input.txt "Process this text file" -p py
 Start an interactive session and query it:
 
 ```bash
-grk session up initial.json -p default
-grk session q "Update the code" -o updated.json
-grk session q -l  # List session details
-grk session down
+grk up initial.json -p default
+grk q "Update the code" -o updated.json
+grk q -l  # List session details
+grk down
 ```
 
 List available profiles with syntax highlighting:
@@ -51,7 +51,7 @@ Get help:
 grk -h
 # or
 grk --help
-grk session --help  # For session-specific help
 ```
+
 
 

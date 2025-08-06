@@ -16,3 +16,4 @@ class FullConfig(BaseModel):
     profiles: dict[str, ProfileConfig] = {}
 
 
+

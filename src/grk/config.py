@@ -104,3 +104,4 @@ def create_default_config():
         click.echo("Default .grkrc with profiles created successfully.")
     except Exception as e:
         click.echo(f"Failed to create .grkrc: {str(e)}")
+

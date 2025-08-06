@@ -53,14 +53,7 @@ def run(file: str, message: str, profile: str = "default"):
     run_grok(file, message, config, api_key, profile)
 
 
-@main.group(
-    help="**Interactive Session Commands**\n\nManage background sessions for stateful, multi-query interactions with Grok."
-)
-def session():
-    pass
-
-
-@session.command("up")
+@main.command("up")
 @click.argument("file", type=click.Path(exists=True, dir_okay=False), required=True)
 @click.option("-p", "--profile", default="default", help="The profile to use")
 def session_up(file: str, profile: str = "default"):
@@ -72,6 +65,7 @@ def session_up(file: str, profile: str = "default"):
         )
     config = load_config(profile)
     pid_file = Path(".grk_session.pid")
+    port_file = Path(".grk_session.port")
     session_file = Path(".grk_session.json")
     log_file = Path(".grk_daemon.log")
     if pid_file.exists():
@@ -83,6 +77,7 @@ def session_up(file: str, profile: str = "default"):
         except OSError:
             click.echo("Cleaning up stale PID file")
             pid_file.unlink()
+            port_file.unlink(missing_ok=True)
             session_file.unlink(missing_ok=True)
             log_file.unlink(missing_ok=True)
 
@@ -90,6 +85,7 @@ def session_up(file: str, profile: str = "default"):
     config_dict = config.model_dump(exclude_none=True)
     config_json = json.dumps(config_dict)
     args = json.dumps({"file": file, "config_json": config_json, "api_key": api_key})
+    # note no leading spaces
     code = f"""
 import json
 import traceback
@@ -124,12 +120,18 @@ except Exception as e:
     session_file.write_text(
         json.dumps({"pid": pid, "profile": profile, "initial_file": file})
     )
-    # Wait briefly for daemon to start
-    time.sleep(1)
-    click.echo(f"Session started with PID {pid}. Logs in {log_file}")
+    # Wait for daemon to start and write port file
+    for _ in range(10):  # Poll for up to 10 seconds
+        time.sleep(1)
+        if port_file.exists():
+            click.echo(f"Session started with PID {pid}. Logs in {log_file}")
+            return
+    # If port file not found after waiting
+    log_content = log_file.read_text() if log_file.exists() else "No logs available"
+    raise click.ClickException(f"Daemon failed to start. Logs:\n{log_content}")
 
 
-@session.command("msg")
+@main.command("q")
 @click.argument("message", required=False)
 @click.option("-o", "--output", default="__temp.json", help="Output file")
 @click.option(
@@ -141,16 +143,20 @@ except Exception as e:
 @click.option(
     "-l", "--list", is_flag=True, help="List file names and prompt stack of the session"
 )
-def session_msg(
+def session_q(
     message: str, output: str = "__temp.json", input: str = None, list: bool = False
 ):
     """Send a message to the background session or list session details with -l."""
     console = Console()
     pid_file = Path(".grk_session.pid")
+    port_file = Path(".grk_session.port")
     session_file = Path(".grk_session.json")
     log_file = Path(".grk_daemon.log")
     if not pid_file.exists():
         raise click.ClickException("No session running")
+    if not port_file.exists():
+        raise click.ClickException("Port file missing; session may have failed to start")
+    port = int(port_file.read_text().strip())
     if session_file.exists():
         session_data = json.loads(session_file.read_text())
         profile = session_data.get("profile", "unknown")
@@ -161,7 +167,7 @@ def session_msg(
 
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        client.connect(("127.0.0.1", 61234))
+        client.connect(("127.0.0.1", port))
 
         if list:
             if message:
@@ -226,6 +232,7 @@ def session_msg(
             except OSError:
                 error_msg += " Process is not running. Cleaning up."
                 pid_file.unlink()
+                port_file.unlink(missing_ok=True)
                 session_file.unlink(missing_ok=True)
         if log_file.exists():
             log_content = log_file.read_text()
@@ -275,19 +282,23 @@ def recv_response(client: socket.socket) -> str:
         return data_bytes.decode("utf-8")
 
 
-@session.command("down")
+@main.command("down")
 def session_down():
     """Tear down the background session process."""
     pid_file = Path(".grk_session.pid")
+    port_file = Path(".grk_session.port")
     session_file = Path(".grk_session.json")
     log_file = Path(".grk_daemon.log")
     if not pid_file.exists():
         raise click.ClickException("No session running")
+    if not port_file.exists():
+        raise click.ClickException("Port file missing; session may have failed to start")
+    port = int(port_file.read_text().strip())
     with pid_file.open() as f:
         pid = int(f.read().strip())
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        client.connect(("127.0.0.1", 61234))
+        client.connect(("127.0.0.1", port))
         request = {"cmd": "down"}
         send_request(client, request)
         resp = recv_response(client)
@@ -298,6 +309,8 @@ def session_down():
     finally:
         if pid_file.exists():
             pid_file.unlink()
+        if port_file.exists():
+            port_file.unlink()
         if session_file.exists():
             session_file.unlink()
         if log_file.exists():
@@ -310,3 +323,5 @@ def session_down():
 
 if __name__ == "__main__":
     main()
+
+

@@ -25,6 +25,7 @@ def recv_full(conn: socket.socket, size: int) -> bytes:
 
 def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
     """Run the background daemon process for session management."""
+    port_file = Path(".grk_session.port")
     try:
         # Load initial codebase from file
         initial_data = json.loads(Path(initial_file).read_text())
@@ -40,11 +41,12 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
         model_used = config.model or "grok-3-mini-fast"
         temperature = config.temperature or 0
 
-        # Set up server
-        PORT = 61234
+        # Set up server with dynamic port
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server.bind(("127.0.0.1", PORT))
+        server.bind(("127.0.0.1", 0))
+        port = server.getsockname()[1]
+        port_file.write_text(str(port))
         server.listen(1)
 
         while True:
@@ -118,6 +120,8 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
         pid_file = Path(".grk_session.pid")
         if pid_file.exists():
             pid_file.unlink()
+        if port_file.exists():
+            port_file.unlink()
 
 def send_response(conn: socket.socket, resp: Union[str, dict]):
     """Send response with length prefix."""
@@ -210,6 +214,8 @@ def apply_cfold_changes(existing: List[dict], changes: List[dict]) -> List[dict]
             if not change.get("delete", False):
                 updated.append(change)  # Add new file
     return updated
+
+
 
 
 
