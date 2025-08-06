@@ -28,7 +28,6 @@ def run_grok(
         config.role or "you are an expert python programmer, writing clean code"
     )
     output_file = config.output or "output.json"
-    json_out_file = config.json_out or "meta_output.json"
     prompt_prepend = config.prompt_prepend or ""
     temperature = config.temperature or 0
 
@@ -140,26 +139,13 @@ def run_grok(
         else:
             Path(output_file).write_text(response)
 
-        with Path(json_out_file).open("w") as f:
-            json.dump(
-                {
-                    "input": file_content,
-                    "prompt": full_prompt,
-                    "response": response,
-                    "used_role": role_from_config,
-                    "used_model": model_used,
-                    "used_profile": profile,
-                    "temperature": temperature,
-                },
-                f,
-                indent=2,
-            )
-        click.echo(f"Response saved to {output_file} and {json_out_file}")
+        click.echo(f"Response saved to {output_file}")
 
         if is_cfold:
             analyze_changes(input_data, response, console)
     except Exception as e:
         raise click.ClickException(f"Failed to write output: {str(e)}")
+
 
 
 

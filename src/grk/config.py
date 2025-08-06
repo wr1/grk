@@ -44,7 +44,6 @@ def create_default_config():
                 "model": "grok-4",
                 "role": "you are an expert engineer and developer",
                 "output": "output.json",
-                "json_out": "grk_default_output.json",
                 "prompt_prepend": "",
                 "temperature": 0.25,
             },
@@ -52,7 +51,6 @@ def create_default_config():
                 "model": "grok-3-mini-fast",
                 "role": "you are an expert python programmer, writing clean code",
                 "output": "output.json",
-                "json_out": "grk_py_output.json",
                 "prompt_prepend": "",
                 "temperature": 0,
             },
@@ -60,7 +58,6 @@ def create_default_config():
                 "model": "grok-3",
                 "role": "you are an expert in writing documentation",
                 "output": "output.json",
-                "json_out": "grk_doc_output.json",
                 "prompt_prepend": "",
                 "temperature": 0.7,
             },
@@ -68,7 +65,6 @@ def create_default_config():
                 "model": "grok-4",
                 "role": "you are an expert lawyer, providing legal advice",
                 "output": "output.json",
-                "json_out": "grk_law_output.json",
                 "prompt_prepend": "write concise legal argumentation, prefer latex",
                 "temperature": 0.35,
             },
@@ -76,7 +72,6 @@ def create_default_config():
                 "model": "grok-4",
                 "role": "you are an expert professor in psychology",
                 "output": "output.json",
-                "json_out": "grk_psy_output.json",
                 "prompt_prepend": "",
                 "temperature": 0.3,
             },
@@ -104,4 +99,5 @@ def create_default_config():
         click.echo("Default .grkrc with profiles created successfully.")
     except Exception as e:
         click.echo(f"Failed to create .grkrc: {str(e)}")
+
 

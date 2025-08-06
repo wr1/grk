@@ -10,28 +10,24 @@ profiles:
     model: grok-4
     role: python-programmer
     output: output.json
-    json_out: /tmp/grk_default_output.json
     prompt_prepend: ""
     temperature: 0  
   py:
     model: grok-3-mini-fast
     role: python-programmer
     output: output.json
-    json_out: /tmp/grk_py_output.json
     prompt_prepend: ""
     temperature: 0 
   doc:
     model: grok-3
     role: documentation-specialist
     output: output.json
-    json_out: /tmp/grk_doc_output.json
     prompt_prepend: ""
     temperature: 0.7 
   law:
     model: grok-4
     role: senior lawyer/legal scholar
     output: output.json
-    json_out: /tmp/grk_law_output.json
     prompt_prepend: "write concise legal argumentation, prefer latex, use the cenum environment for continuous numbering throughout the document. "
     temperature: 0.5  
 ```

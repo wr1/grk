@@ -28,21 +28,18 @@ profiles:
         model: grok-4
         role: expert engineer and dev
         output: output.json
-        json_out: /tmp/grok_output.json
         prompt_prepend: " "
         temperature: 0.1  
     law:
         model: grok-3
         role: lawyer, expert legal scholar
         output: output.json
-        json_out: output.json
         prompt_prepend: ""
         temperature: 0.15
     docs:
         model: grok-4
         role: documentation-specialist
         output: output.json
-        json_out: output.json
         prompt_prepend: "aim for conciseness and documenting use over implementation, "
         temperature: 0.7  
 ```
@@ -58,9 +55,9 @@ grk run <input_file> <prompt> [-p <profile>]  # Note: -p is the short form for -
 
 ### Interactive (Session-Based) Commands
 ```bash
-grk up <initial_file> [-p <profile>]
-grk q <prompt> [-o <output>] [-i <input_file>] [-l]  # -l to list session details
-grk down
+grk session up <initial_file> [-p <profile>]
+grk session q <prompt> [-o <output>] [-i <input_file>] [-l]  # -l to list session details
+grk session down
 ```
 
 In session mode, responses are postprocessed: any explanatory messages are printed to the console, and the output file is cleaned to ensure valid JSON in {'files': [...]} format (if possible).

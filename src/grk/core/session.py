@@ -35,6 +35,24 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
         messages: List[Union[system, user, assistant]] = []
         role_from_config = config.role or "you are an expert engineer and developer"
         messages.append(system(role_from_config))
+
+        # Add initial instructions if present
+        initial_instructions = initial_data.get("instructions", [])
+        for instr in initial_instructions:
+            role = instr["type"]
+            content = instr["content"]
+            if role == "system":
+                msg = system(content)
+            elif role == "user":
+                msg = user(content)
+            elif role == "assistant":
+                msg = assistant(content)
+            else:
+                raise ValueError(f"Unknown message type: {role}")
+            if role == "user" and instr.get("name"):
+                msg.name = instr["name"]
+            messages.append(msg)
+
         files_json = json.dumps(cached_codebase, indent=2)
         messages.append(user(f"Current codebase files:\n```json\n{files_json}\n```"))
 
@@ -68,11 +86,13 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                 break
             elif cmd == "list":
                 files = [f["path"] for f in cached_codebase]
-                prompts = []
-                for msg in messages[2:]:  # Skip initial system and files message
-                    if isinstance(msg, user):
-                        prompts.append(msg.content)
-                response_data = {"files": files, "prompts": prompts}
+                instructions = []
+                for msg in messages[1:]:  # Skip initial system message
+                    if isinstance(msg, (user, assistant)):
+                        name = msg.name if hasattr(msg, 'name') else "Unnamed"
+                        synopsis = msg.content[:100].strip() + ("..." if len(msg.content) > 100 else "")
+                        instructions.append({"name": name, "synopsis": synopsis})
+                response_data = {"files": files, "instructions": instructions}
                 send_response(conn, response_data)
                 conn.close()
             elif cmd == "query":
@@ -214,6 +234,7 @@ def apply_cfold_changes(existing: List[dict], changes: List[dict]) -> List[dict]
             if not change.get("delete", False):
                 updated.append(change)  # Add new file
     return updated
+
 
 
 
