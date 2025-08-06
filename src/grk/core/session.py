@@ -43,6 +43,7 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
         # Set up server
         PORT = 61234
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server.bind(("127.0.0.1", PORT))
         server.listen(1)
 
@@ -110,6 +111,8 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                 conn.close()
     except Exception as e:
         print(f"Daemon error: {str(e)}")
+        import traceback
+        traceback.print_exc()
     finally:
         server.close()
         pid_file = Path(".grk_session.pid")
@@ -207,6 +210,7 @@ def apply_cfold_changes(existing: List[dict], changes: List[dict]) -> List[dict]
             if not change.get("delete", False):
                 updated.append(change)  # Add new file
     return updated
+
 
 
 

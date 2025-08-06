@@ -16,6 +16,7 @@ from rich.spinner import Spinner
 from rich.console import Console
 import sys
 import subprocess
+import traceback
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -72,6 +73,7 @@ def session_up(file: str, profile: str = "default"):
     config = load_config(profile)
     pid_file = Path(".grk_session.pid")
     session_file = Path(".grk_session.json")
+    log_file = Path(".grk_daemon.log")
     if pid_file.exists():
         with pid_file.open() as f:
             pid = int(f.read().strip())
@@ -82,36 +84,49 @@ def session_up(file: str, profile: str = "default"):
             click.echo("Cleaning up stale PID file")
             pid_file.unlink()
             session_file.unlink(missing_ok=True)
+            log_file.unlink(missing_ok=True)
 
     # Serialize config and args for subprocess
     config_dict = config.model_dump(exclude_none=True)
     config_json = json.dumps(config_dict)
     args = json.dumps({"file": file, "config_json": config_json, "api_key": api_key})
     code = f"""
-    import json
-    from grk.core.session import daemon_process
-    from grk.models import ProfileConfig
+import json
+import traceback
+import sys
+from grk.core.session import daemon_process
+from grk.models import ProfileConfig
+try:
     args = json.loads({json.dumps(args)})
     config = ProfileConfig(**json.loads(args['config_json']))
     daemon_process(args['file'], config, args['api_key'])
+except Exception as e:
+    print("Daemon error:", file=sys.stderr)
+    traceback.print_exc(file=sys.stderr)
+    sys.exit(1)
     """
 
     creation_flags = 0
     if sys.platform.startswith("win"):
-        creation_flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
-    p = subprocess.Popen(
-        [sys.executable, "-c", code],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        creationflags=creation_flags,
-        start_new_session=not sys.platform.startswith("win"),
-    )
+        creation_flags = (
+            subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+        )
+    with open(log_file, "w") as log:
+        p = subprocess.Popen(
+            [sys.executable, "-c", code],
+            stdout=log,
+            stderr=log,
+            creationflags=creation_flags,
+            start_new_session=not sys.platform.startswith("win"),
+        )
     pid = p.pid
     pid_file.write_text(str(pid))
     session_file.write_text(
         json.dumps({"pid": pid, "profile": profile, "initial_file": file})
     )
-    click.echo(f"Session started with PID {pid}")
+    # Wait briefly for daemon to start
+    time.sleep(1)
+    click.echo(f"Session started with PID {pid}. Logs in {log_file}")
 
 
 @session.command("msg")
@@ -133,6 +148,7 @@ def session_msg(
     console = Console()
     pid_file = Path(".grk_session.pid")
     session_file = Path(".grk_session.json")
+    log_file = Path(".grk_daemon.log")
     if not pid_file.exists():
         raise click.ClickException("No session running")
     if session_file.exists():
@@ -200,16 +216,34 @@ def session_msg(
             console.print(f"[bold green]Summary:[/bold green] {data['summary']}")
             console.print(f"[bold green]Output written to:[/bold green] '{output}'")
     except ConnectionRefusedError:
-        raise click.ClickException("Session not responding")
+        error_msg = "Session not responding."
+        if pid_file.exists():
+            with pid_file.open() as f:
+                pid = int(f.read().strip())
+            try:
+                os.kill(pid, 0)
+                error_msg += " Process is running but not listening."
+            except OSError:
+                error_msg += " Process is not running. Cleaning up."
+                pid_file.unlink()
+                session_file.unlink(missing_ok=True)
+        if log_file.exists():
+            log_content = log_file.read_text()
+            error_msg += f"\nDaemon log:\n{log_content}"
+        else:
+            error_msg += " No daemon log found."
+        raise click.ClickException(error_msg)
     finally:
         client.close()
+
 
 def send_request(client: socket.socket, request: dict):
     """Send request with length prefix."""
     request_json = json.dumps(request)
     length = len(request_json)
-    length_bytes = length.to_bytes(4, 'big')
+    length_bytes = length.to_bytes(4, "big")
     client.send(length_bytes + request_json.encode())
+
 
 def recv_response(client: socket.socket) -> str:
     """Receive response with length prefix, with spinner."""
@@ -226,7 +260,7 @@ def recv_response(client: socket.socket) -> str:
             while not future_length.done():
                 time.sleep(0.1)
         length_bytes = future_length.result()
-        length = int.from_bytes(length_bytes, 'big')
+        length = int.from_bytes(length_bytes, "big")
 
         # Then, receive data
         future_data = executor.submit(recv_full, client, length)
@@ -238,13 +272,15 @@ def recv_response(client: socket.socket) -> str:
             while not future_data.done():
                 time.sleep(0.1)
         data_bytes = future_data.result()
-        return data_bytes.decode('utf-8')
+        return data_bytes.decode("utf-8")
+
 
 @session.command("down")
 def session_down():
     """Tear down the background session process."""
     pid_file = Path(".grk_session.pid")
     session_file = Path(".grk_session.json")
+    log_file = Path(".grk_daemon.log")
     if not pid_file.exists():
         raise click.ClickException("No session running")
     with pid_file.open() as f:
@@ -264,6 +300,8 @@ def session_down():
             pid_file.unlink()
         if session_file.exists():
             session_file.unlink()
+        if log_file.exists():
+            log_file.unlink()
         try:
             os.kill(pid, 9)
         except OSError:
@@ -272,6 +310,3 @@ def session_down():
 
 if __name__ == "__main__":
     main()
-
-
-
