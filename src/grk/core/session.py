@@ -13,6 +13,16 @@ from ..models import ProfileConfig
 from ..utils import get_change_summary
 from xai_sdk.chat import assistant, system, user
 
+def recv_full(conn: socket.socket, size: int) -> bytes:
+    """Receive exactly size bytes from the socket."""
+    data = b''
+    while len(data) < size:
+        chunk = conn.recv(min(4096, size - len(data)))
+        if not chunk:
+            raise ValueError("Incomplete data received")
+        data += chunk
+    return data
+
 def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
     """Run the background daemon process for session management."""
     try:
@@ -38,14 +48,19 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
 
         while True:
             conn, addr = server.accept()
-            data = conn.recv(4096).decode('utf-8')
+            # Receive length prefix (4 bytes)
+            length_bytes = recv_full(conn, 4)
+            length = int.from_bytes(length_bytes, 'big')
+            # Receive the exact data
+            data_bytes = recv_full(conn, length)
+            data = data_bytes.decode('utf-8')
             if not data:
                 conn.close()
                 continue
             request = json.loads(data)
             cmd = request.get("cmd")
             if cmd == "down":
-                conn.send("Shutting down".encode())
+                send_response(conn, "Shutting down")
                 conn.close()
                 break
             elif cmd == "list":
@@ -55,7 +70,7 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                     if isinstance(msg, user):
                         prompts.append(msg.content)
                 response_data = {"files": files, "prompts": prompts}
-                conn.send(json.dumps(response_data).encode())
+                send_response(conn, response_data)
                 conn.close()
             elif cmd == "query":
                 prompt = request["prompt"]
@@ -89,7 +104,7 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                     summary = "No valid JSON detected; raw response saved. " + summary
 
                 # Send summary and message
-                conn.send(json.dumps({"summary": summary, "message": extracted_message}).encode())
+                send_response(conn, {"summary": summary, "message": extracted_message})
                 conn.close()
             else:
                 conn.close()
@@ -101,46 +116,60 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
         if pid_file.exists():
             pid_file.unlink()
 
+def send_response(conn: socket.socket, resp: Union[str, dict]):
+    """Send response with length prefix."""
+    if isinstance(resp, str):
+        resp_json = resp
+    else:
+        resp_json = json.dumps(resp)
+    length = len(resp_json)
+    length_bytes = length.to_bytes(4, 'big')
+    conn.send(length_bytes + resp_json.encode())
+
 def postprocess_response(response: str) -> Tuple[str, str]:
     """Postprocess the response to extract/clean JSON and any message."""
-    response = response.strip()
+    original_response = response.strip()
     extracted_message = ""
 
     # Check for markdown code block
-    if response.startswith("```json") and response.endswith("```"):
-        response = response[7:-3].strip()
-    elif "```json" in response:
+    if original_response.startswith("```json") and original_response.endswith("```"):
+        response = original_response[7:-3].strip()
+    elif "```json" in original_response:
         # Extract the block if embedded
-        match = re.search(r"```json\s*(.*?)\s*```", response, re.DOTALL)
+        match = re.search(r"```json\s*(.*?)\s*```", original_response, re.DOTALL)
         if match:
+            extracted_message = original_response.replace(match.group(0), "").strip()
             response = match.group(1).strip()
-            extracted_message = response.replace(match.group(0), "").strip()
+        else:
+            response = original_response
+    else:
+        response = original_response
 
     # Try to parse as JSON
     try:
         json_data = json.loads(response)
         if isinstance(json_data, list):
-            return json.dumps({"files": json_data}, indent=2), extracted_message
+            return json.dumps({"files": json_data}), extracted_message
         elif isinstance(json_data, dict) and "files" in json_data:
-            return json.dumps(json_data, indent=2), extracted_message
+            return json.dumps(json_data), extracted_message
         else:
             # Not a recognized format; treat as message
-            return "", response
+            return "", original_response
     except json.JSONDecodeError:
         # Fallback: find the largest valid JSON substring (e.g., embedded object)
-        match = re.search(r"(\{.*?\}|\[.*?\])", response, re.DOTALL)
+        match = re.search(r"(\{.*?\}|\[.*?\])", original_response, re.DOTALL)
         if match:
             try:
                 json_data = json.loads(match.group(1))
-                extracted_message = response.replace(match.group(1), "").strip()
+                extracted_message = original_response.replace(match.group(1), "").strip()
                 if isinstance(json_data, list):
-                    return json.dumps({"files": json_data}, indent=2), extracted_message
+                    return json.dumps({"files": json_data}), extracted_message
                 elif isinstance(json_data, dict) and "files" in json_data:
-                    return json.dumps(json_data, indent=2), extracted_message
+                    return json.dumps(json_data), extracted_message
             except json.JSONDecodeError:
                 pass
         # If no valid JSON, whole response is message
-        return "", response
+        return "", original_response
 
 def load_cached_codebase() -> List[dict]:
     """Load the cached codebase from a local file."""
@@ -178,6 +207,9 @@ def apply_cfold_changes(existing: List[dict], changes: List[dict]) -> List[dict]
             if not change.get("delete", False):
                 updated.append(change)  # Add new file
     return updated
+
+
+
 
 
 

@@ -15,3 +15,4 @@ class FullConfig(BaseModel):
     """Full configuration with profiles."""
     profiles: dict[str, ProfileConfig] = {}
 
+

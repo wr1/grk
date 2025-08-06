@@ -19,3 +19,4 @@ def test_call_grok_api_failure(mocker):
     assert "API request failed" in str(exc_info.value)
 
 
+

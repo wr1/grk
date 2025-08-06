@@ -89,3 +89,4 @@ def test_create_default_config(tmp_path, monkeypatch, capsys):
     captured = capsys.readouterr()
     assert "Default .grkrc with profiles created successfully" in captured.out
 
+
