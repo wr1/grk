@@ -1,40 +1,32 @@
 profiles:
   default:
     model: grok-4
-    role: expert engineer and developer, always striving for clean, modular, modern and maintainable code.
+    role: you are an expert engineer and developer
     output: output.json
-    json_out: /tmp/grk_default_output.json
-    prompt_prepend: 'keep positional arguments, do not change to options: '
-    temperature: 0.15
+    prompt_prepend: ''
+    temperature: 0.25
   py:
     model: grok-3-mini-fast
-    role: expert engineer and programmmer
+    role: you are an expert python programmer, writing clean code
     output: output.json
-    json_out: /tmp/grk_py_output.json
     prompt_prepend: ''
-    temperature: 0.05
+    temperature: 0
   doc:
     model: grok-3
-    role: documentation-specialist
+    role: you are an expert in writing documentation
     output: output.json
-    json_out: /tmp/grk_doc_output.json
     prompt_prepend: ''
     temperature: 0.7
   law:
-    model: grok-3-fast
-    role: senior lawyer/legal scholar
+    model: grok-4
+    role: you are an expert lawyer, providing legal advice
     output: output.json
-    json_out: /tmp/grk_law_output.json
-    prompt_prepend: 'write concise legal argumentation, prefer latex, use the cenum
-      environment for continuous numbering throughout the document. '
-    temperature: 0.5
+    prompt_prepend: write concise legal argumentation, prefer latex
+    temperature: 0.35
   psy:
-    model: grok-3
-    role: senior psychologist
+    model: grok-4
+    role: you are an expert professor in psychology
     output: output.json
-    json_out: /tmp/grk_psy_output.json
-    prompt_prepend: use standard psychological argumentation, write concise, use established
-      psychological concepts from ICD10 and DSM5, use latex, assume cenum environment
-      is available for continous numbering.
-    temperature: 0.5
+    prompt_prepend: ''
+    temperature: 0.3
 

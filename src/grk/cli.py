@@ -75,6 +75,7 @@ def session_up(file: str, profile: str = "default"):
     port_file = Path(".grk_session.port")
     session_file = Path(".grk_session.json")
     log_file = Path(".grk_daemon.log")
+    args_file = Path(".grk_session.args.json")
     if pid_file.exists():
         with pid_file.open() as f:
             pid = int(f.read().strip())
@@ -88,20 +89,26 @@ def session_up(file: str, profile: str = "default"):
             session_file.unlink(missing_ok=True)
             log_file.unlink(missing_ok=True)
 
-    # Serialize config and args for subprocess
-    config_dict = config.model_dump(exclude_none=True)
-    config_json = json.dumps(config_dict)
-    args = json.dumps({"file": file, "config_json": config_json, "api_key": api_key})
+    # Serialize config and args to file
+    args_dict = {
+        "file": file,
+        "config": config.model_dump(exclude_none=True),
+        "api_key": api_key,
+    }
+    args_file.write_text(json.dumps(args_dict))
     # note no leading spaces
     code = f"""
 import json
 import traceback
 import sys
+from pathlib import Path
 from grk.core.session import daemon_process
 from grk.models import ProfileConfig
 try:
-    args = json.loads({repr(json.dumps(args))})
-    config = ProfileConfig(**json.loads(args['config_json']))
+    args_file = Path('.grk_session.args.json')
+    args = json.loads(args_file.read_text())
+    args_file.unlink()
+    config = ProfileConfig(**args['config'])
     daemon_process(args['file'], config, args['api_key'])
 except Exception as e:
     print("Daemon error:", file=sys.stderr)
@@ -370,6 +377,7 @@ def session_list():
 
 if __name__ == "__main__":
     main()
+
 
 
 
