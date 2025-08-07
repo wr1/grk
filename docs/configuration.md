@@ -7,25 +7,25 @@ You can configure `grk` using a `.grkrc` YAML file in the current directory. Thi
 ```yaml
 profiles:
   default:
-    model: grok-4
+    model: grok4
     role: python-programmer
     output: output.json
     prompt_prepend: ""
     temperature: 0  
   py:
-    model: grok-3-mini-fast
+    model: grok4
     role: python-programmer
     output: output.json
     prompt_prepend: ""
     temperature: 0 
   doc:
-    model: grok-3
+    model: grok4
     role: documentation-specialist
     output: output.json
     prompt_prepend: ""
     temperature: 0.7 
   law:
-    model: grok-4
+    model: grok4
     role: senior lawyer/legal scholar
     output: output.json
     prompt_prepend: "write concise legal argumentation, prefer latex, use the cenum environment for continuous numbering throughout the document. "
@@ -48,6 +48,7 @@ grk init
 ```
 
 If a `.grkrc` file already exists, existing profiles will be preserved with an `_old` suffix if they differ from the default profiles.
+
 
 
 
