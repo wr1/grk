@@ -67,14 +67,14 @@ def create_default_config():
                 "temperature": 0.25,
             },
             "py": {
-                "model": "grok-3-mini-fast",
+                "model": "grok-4",
                 "role": "you are an expert python programmer, writing clean code",
                 "output": "output.json",
                 "prompt_prepend": "",
                 "temperature": 0,
             },
             "doc": {
-                "model": "grok-3",
+                "model": "grok-4",
                 "role": "you are an expert in writing documentation",
                 "output": "output.json",
                 "prompt_prepend": "",
