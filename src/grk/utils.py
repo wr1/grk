@@ -145,17 +145,14 @@ def filter_protected_files(files_list: List[dict], protected_paths: Set[str]) ->
     return filtered
 
 def build_instructions_from_messages(messages: List) -> List[Dict[str, Any]]:
-    """Build list of instruction dicts from messages for summary."""
+    """Build list of instruction dicts from messages for summary, skipping empty content."""
     instructions = []
     for msg in messages:
-        if isinstance(msg, dict):
-            role = msg["role"]
-            name = msg.get("name", "Unnamed")
-            content = msg["content"]
-        else:  # Assume Message object
-            role = msg.role
-            name = getattr(msg, "name", "Unnamed")
-            content = msg.content
+        role = msg.role
+        name = getattr(msg, 'name', "Unnamed")
+        content = msg.content
+        if not content.strip():
+            continue  # Skip empty instructions
         synopsis = (content[:100] if isinstance(content, str) else str(content)[:100])
         synopsis = synopsis.strip() + ("..." if len(synopsis) == 100 else "")
         synopsis = synopsis.replace("\n", " ")
@@ -175,9 +172,11 @@ def print_instruction_tree(console: Console, instructions: List[Dict[str, Any]],
     for idx, instr in enumerate(all_instr):
         is_last = idx == len(all_instr) - 1
         prefix = "└── " if is_last else "├── "
-        name_str = f" ({instr['name']})" if instr['name'] != "Unnamed" else ""
-        synopsis = instr['synopsis']
-        lines.append(f"{prefix}{instr['role']}{name_str}: {synopsis}")
+        role = instr.get('role', 'unknown')
+        name = instr.get('name', 'Unnamed')
+        synopsis = instr.get('synopsis', '')
+        name_str = f" ({name})" if name != "Unnamed" else ""
+        lines.append(f"{prefix}{role}{name_str}: {synopsis}")
     console.print("\n".join(lines))
 
 
