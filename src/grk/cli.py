@@ -205,6 +205,9 @@ def session_msg(
         response = recv_response(client)
 
         data = json.loads(response)
+        if "error" in data:
+            console.print(f"[bold red]Error:[/bold red] {data['error']}")
+            return
         if data.get("message"):
             console.print(
                 f"[bold green]Message from Grok:[/bold green] {data['message']}"
@@ -292,7 +295,14 @@ def session_down():
         request = {"cmd": "down"}
         send_request(client, request)
         resp = recv_response(client)
-        click.echo(resp)
+        try:
+            data = json.loads(resp)
+            if "error" in data:
+                click.echo(f"Error shutting down: {data['error']}")
+            else:
+                click.echo(resp)
+        except json.JSONDecodeError:
+            click.echo(resp)
         client.close()
     except ConnectionRefusedError:
         click.echo("Session not responding, removing PID file")
@@ -341,6 +351,9 @@ def session_list():
         response = recv_response(client)
 
         data = json.loads(response)
+        if "error" in data:
+            console.print(f"[bold red]Error from session:[/bold red] {data['error']}")
+            return
         console.print("[bold green]Session Details:[/bold green]")
         console.print(f" Profile: [cyan]{profile}[/cyan]")
         console.print(f" Initial file: [cyan]{initial_file}[/cyan]")
@@ -377,6 +390,7 @@ def session_list():
 
 if __name__ == "__main__":
     main()
+
 
 
 

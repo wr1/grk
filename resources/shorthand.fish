@@ -21,3 +21,11 @@ function gl
     grk session list $argv
 end
 
+function cf
+    cfold fold $argv
+end
+
+function cu
+    cfold unfold $argv
+end 
+
