@@ -151,10 +151,10 @@ def build_instructions_from_messages(messages: List) -> List[Dict[str, Any]]:
         role = msg.role
         name = getattr(msg, 'name', "Unnamed")
         content = msg.content
-        if not content.strip():
+        content_str = content if isinstance(content, str) else ' '.join(content) if isinstance(content, (list, tuple)) else str(content)
+        if not content_str.strip():
             continue  # Skip empty instructions
-        synopsis = (content[:100] if isinstance(content, str) else str(content)[:100])
-        synopsis = synopsis.strip() + ("..." if len(synopsis) == 100 else "")
+        synopsis = content_str[:100].strip() + ("..." if len(content_str) > 100 else "")
         synopsis = synopsis.replace("\n", " ")
         instructions.append({"role": role, "name": name, "synopsis": synopsis})
     return instructions
