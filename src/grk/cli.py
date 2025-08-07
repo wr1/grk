@@ -82,7 +82,7 @@ def session_up(file: str, profile: str = "default"):
             pid = int(f.read().strip())
         try:
             os.kill(pid, 0)
-            raise click.ClickException("Session already running")
+            raise click.ClickException(f"Session already running (PID {pid}). Run 'grk session down' to stop it.")
         except OSError:
             click.echo("Cleaning up stale PID file")
             pid_file.unlink()
@@ -174,11 +174,13 @@ def session_msg(
     port = int(port_file.read_text().strip())
     if session_file.exists():
         session_data = json.loads(session_file.read_text())
-        profile = session_data.get("profile", "unknown")
+        profile = session_data.get("profile", "default")
         initial_file = session_data.get("initial_file", "unknown")
     else:
-        profile = "unknown"
+        profile = "default"
         initial_file = "unknown"
+    config = load_config(profile)
+    model_used = config.model or "grok-3-mini-fast"
 
     # Get current instruction summary
     client_list = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -217,6 +219,7 @@ def session_msg(
             "[bold green]Querying grk session[/bold green] with the following settings:"
         )
         console.print(f" Profile: [cyan]{profile}[/cyan]")
+        console.print(f" Model: [yellow]{model_used}[/yellow]")
         console.print(f" Initial file: [cyan]{initial_file}[/cyan]")
         console.print(f" Prompt: [cyan]{message}[/cyan]")
         console.print(f" Output: [cyan]{output}[/cyan]")
