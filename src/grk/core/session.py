@@ -6,6 +6,7 @@ from typing import List, Union, Tuple
 from pathlib import Path
 import socket
 import os
+import time
 import click
 from rich.console import Console
 from ..api import call_grok
@@ -127,7 +128,10 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                             user(f"Additional input:\n```txt\n{input_content}\n```")
                         )
                     messages.append(user(prompt))
+                    start_time = time.time()
                     response = call_grok(messages, model_used, api_key, temperature)
+                    end_time = time.time()
+                    thinking_time = end_time - start_time
                     messages.append(assistant(response))
 
                     # Postprocess response
@@ -167,9 +171,9 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                             + get_change_summary(input_for_analysis, cleaned_response)
                         )
 
-                    # Send summary and message
+                    # Send summary, message, and thinking time
                     send_response(
-                        conn, {"summary": summary, "message": extracted_message}
+                        conn, {"summary": summary, "message": extracted_message, "thinking_time": thinking_time}
                     )
                     conn.close()
                 else:
@@ -292,3 +296,4 @@ def apply_cfold_changes(existing: List[dict], changes: List[dict]) -> List[dict]
             if not change.get("delete", False):
                 updated.append(change)  # Add new file
     return updated
+
