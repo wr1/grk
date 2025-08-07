@@ -148,10 +148,16 @@ def build_instructions_from_messages(messages: List) -> List[Dict[str, Any]]:
     """Build list of instruction dicts from messages for summary."""
     instructions = []
     for msg in messages:
-        role = msg["role"]
-        name = msg.get("name", "Unnamed")
-        content = msg["content"]
-        synopsis = content[:100].strip() + ("..." if len(content) > 100 else "")
+        if isinstance(msg, dict):
+            role = msg["role"]
+            name = msg.get("name", "Unnamed")
+            content = msg["content"]
+        else:  # Assume Message object
+            role = msg.role
+            name = getattr(msg, "name", "Unnamed")
+            content = msg.content
+        synopsis = (content[:100] if isinstance(content, str) else str(content)[:100])
+        synopsis = synopsis.strip() + ("..." if len(synopsis) == 100 else "")
         synopsis = synopsis.replace("\n", " ")
         instructions.append({"role": role, "name": name, "synopsis": synopsis})
     return instructions
