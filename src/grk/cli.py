@@ -246,6 +246,8 @@ def session_msg(
                 f"[bold green]Message from Grok:[/bold green] {data['message']}"
             )
         console.print(f"[bold green]Summary:[/bold green] {data['summary']}")
+        if "thinking_time" in data:
+            console.print(f"[bold green]Thinking time:[/bold green] {data['thinking_time']:.2f} seconds")
         console.print(f"[bold green]Output written to:[/bold green] '{output}'")
     except ConnectionRefusedError:
         error_msg = "Session not responding."
@@ -420,6 +422,7 @@ def session_list():
 
 if __name__ == "__main__":
     main()
+
 
 
 
