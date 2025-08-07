@@ -30,6 +30,9 @@ profiles:
     output: output.json
     prompt_prepend: "write concise legal argumentation, prefer latex, use the cenum environment for continuous numbering throughout the document. "
     temperature: 0.5  
+brief:
+  file: "design_brief.typ"
+  role: "assistant"
 ```
 
 ## Environment Variables
@@ -45,6 +48,7 @@ grk init
 ```
 
 If a `.grkrc` file already exists, existing profiles will be preserved with an `_old` suffix if they differ from the default profiles.
+
 
 
 

@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from rich.live import Live
 from rich.spinner import Spinner
 import click
-from .config import ProfileConfig
+from .config import ProfileConfig, load_brief
 from .utils import analyze_changes
 from xai_sdk.chat import assistant, system, user
 
@@ -40,6 +40,25 @@ def run_grok(
     full_prompt = prompt_prepend + message
     if role_from_config:
         messages.append(system(role_from_config))
+
+    # Add brief if configured
+    brief = load_brief()
+    if brief:
+        try:
+            brief_content = Path(brief.file).read_text()
+            brief_role = brief.role.lower()
+            if brief_role == 'system':
+                messages.append(system(brief_content))
+            elif brief_role == 'user':
+                messages.append(user(brief_content))
+            elif brief_role == 'assistant':
+                messages.append(assistant(brief_content))
+            else:
+                raise ValueError(f"Invalid role for brief: {brief_role}")
+        except FileNotFoundError:
+            click.echo(f"Warning: Brief file '{brief.file}' not found, skipping.")
+        except Exception as e:
+            raise click.ClickException(f"Failed to load brief: {str(e)}")
 
     try:
         input_data = json.loads(file_content)
@@ -145,6 +164,7 @@ def run_grok(
             analyze_changes(input_data, response, console)
     except Exception as e:
         raise click.ClickException(f"Failed to write output: {str(e)}")
+
 
 
 

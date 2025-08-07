@@ -10,6 +10,7 @@ import click
 from rich.console import Console
 from ..api import call_grok
 from ..models import ProfileConfig
+from ..config import load_brief
 from ..utils import get_change_summary
 from xai_sdk.chat import assistant, system, user
 
@@ -35,6 +36,25 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
         messages: List[Union[system, user, assistant]] = []
         role_from_config = config.role or "you are an expert engineer and developer"
         messages.append(system(role_from_config))
+
+        # Add brief if configured
+        brief = load_brief()
+        if brief:
+            try:
+                brief_content = Path(brief.file).read_text()
+                brief_role = brief.role.lower()
+                if brief_role == 'system':
+                    messages.append(system(brief_content))
+                elif brief_role == 'user':
+                    messages.append(user(brief_content))
+                elif brief_role == 'assistant':
+                    messages.append(assistant(brief_content))
+                else:
+                    raise ValueError(f"Invalid role for brief: {brief_role}")
+            except FileNotFoundError:
+                click.echo(f"Warning: Brief file '{brief.file}' not found, skipping.")
+            except Exception as e:
+                raise click.ClickException(f"Failed to load brief: {str(e)}")
 
         # Add initial instructions if present
         initial_instructions = initial_data.get("instructions", [])
@@ -234,6 +254,7 @@ def apply_cfold_changes(existing: List[dict], changes: List[dict]) -> List[dict]
             if not change.get("delete", False):
                 updated.append(change)  # Add new file
     return updated
+
 
 
 

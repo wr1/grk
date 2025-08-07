@@ -2,8 +2,9 @@
 
 from pathlib import Path
 from ruamel.yaml import YAML
-from .models import FullConfig, ProfileConfig  # Import Pydantic models
+from .models import FullConfig, ProfileConfig, Brief  # Import Pydantic models
 import click
+from typing import Optional
 
 
 def load_config(profile: str = "default") -> ProfileConfig:
@@ -25,16 +26,34 @@ def load_config(profile: str = "default") -> ProfileConfig:
         return ProfileConfig()
 
 
+def load_brief() -> Optional[Brief]:
+    """Load the top-level brief from .grkrc."""
+    config_file = Path(".grkrc")
+    if not config_file.exists():
+        return None
+    try:
+        yaml = YAML()
+        with config_file.open("r") as f:
+            data = yaml.load(f) or {}
+        full_config = FullConfig(**data)
+        return full_config.brief
+    except Exception as e:
+        print(f"Warning: Failed to load brief from .grkrc: {str(e)}")
+        return None
+
+
 def create_default_config():
     """Create default .grkrc file with profiles, preserving old profiles with _old suffix if different."""
     config_file = Path(".grkrc")
     old_profiles = {}
+    old_brief = None
     if config_file.exists():
         try:
             yaml = YAML()
             with config_file.open("r") as f:
                 existing_config = yaml.load(f) or {}
             old_profiles = existing_config.get("profiles", {})
+            old_brief = existing_config.get("brief")
         except Exception as e:
             click.echo(f"Warning: Failed to load existing .grkrc: {str(e)}")
 
@@ -75,7 +94,8 @@ def create_default_config():
                 "prompt_prepend": "",
                 "temperature": 0.3,
             },
-        }
+        },
+        "brief": {"file": "design_brief.typ", "role": "assistant"},
     }
 
     # Add old profiles with _old suffix only if they differ
@@ -92,6 +112,11 @@ def create_default_config():
                 f"Profile '{profile_name}' not in default config, saved as '{profile_name}_old'."
             )
 
+    # Preserve old brief if different
+    if old_brief and old_brief != default_config.get("brief"):
+        default_config["brief_old"] = old_brief
+        click.echo("Brief differs from default, saved old as 'brief_old'.")
+
     try:
         yaml = YAML()
         with open(".grkrc", "w") as f:
@@ -99,5 +124,3 @@ def create_default_config():
         click.echo("Default .grkrc with profiles created successfully.")
     except Exception as e:
         click.echo(f"Failed to create .grkrc: {str(e)}")
-
-

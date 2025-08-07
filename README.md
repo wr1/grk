@@ -42,6 +42,9 @@ profiles:
         output: output.json
         prompt_prepend: "aim for conciseness and documenting use over implementation, "
         temperature: 0.7  
+brief:
+    file: "design_brief.typ"
+    role: "assistant"
 ```
 
 ## Usage
@@ -95,6 +98,7 @@ MIT
 <!-- ## Documentation
 
 For detailed documentation, visit our [MkDocs site](./docs/index.md) or run `mkdocs serve` locally after installing dependencies with `uv add mkdocs mkdocs-material`. -->
+
 
 
 

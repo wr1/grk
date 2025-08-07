@@ -29,4 +29,3 @@ profiles:
     output: output.json
     prompt_prepend: ''
     temperature: 0.3
-

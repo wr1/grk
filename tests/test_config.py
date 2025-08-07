@@ -1,7 +1,7 @@
 from pathlib import Path
 from ruamel.yaml import YAML
-from grk.config import load_config, create_default_config
-from grk.models import ProfileConfig  # Import for type checking
+from grk.config import load_config, create_default_config, load_brief
+from grk.models import ProfileConfig, Brief  # Import for type checking
 
 def test_load_config_no_file(tmp_path, monkeypatch):
     """Test load_config when .grkrc file does not exist."""
@@ -88,6 +88,40 @@ def test_create_default_config(tmp_path, monkeypatch, capsys):
     assert Path('.grkrc').exists()
     captured = capsys.readouterr()
     assert "Default .grkrc with profiles created successfully" in captured.out
+
+def test_load_brief(tmp_path, monkeypatch):
+    """Test load_brief with a valid .grkrc file."""
+    monkeypatch.chdir(tmp_path)
+    config_data = {
+        "brief": {
+            "file": "brief.txt",
+            "role": "assistant"
+        }
+    }
+    yaml = YAML()
+    with Path(".grkrc").open("w") as f:
+        yaml.dump(config_data, f)
+    
+    result = load_brief()
+    assert isinstance(result, Brief)
+    assert result.file == "brief.txt"
+    assert result.role == "assistant"
+
+def test_load_brief_no_file(tmp_path, monkeypatch):
+    """Test load_brief when .grkrc does not exist."""
+    monkeypatch.chdir(tmp_path)
+    result = load_brief()
+    assert result is None
+
+def test_load_brief_invalid(tmp_path, monkeypatch, capsys):
+    """Test load_brief with invalid brief data."""
+    monkeypatch.chdir(tmp_path)
+    Path(".grkrc").write_text("brief: invalid")
+    result = load_brief()
+    captured = capsys.readouterr()
+    assert "Warning: Failed to load brief from .grkrc" in captured.out
+    assert result is None
+
 
 
 

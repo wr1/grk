@@ -2,6 +2,11 @@
 from typing import Optional
 from pydantic import BaseModel
 
+class Brief(BaseModel):
+    """Configuration for a brief message."""
+    file: str
+    role: str = 'assistant'
+
 class ProfileConfig(BaseModel):
     """Configuration for a single profile."""
     model: Optional[str] = None
@@ -13,6 +18,8 @@ class ProfileConfig(BaseModel):
 class FullConfig(BaseModel):
     """Full configuration with profiles."""
     profiles: dict[str, ProfileConfig] = {}
+    brief: Optional[Brief] = None
+
 
 
 
