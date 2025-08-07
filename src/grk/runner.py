@@ -11,7 +11,7 @@ from rich.live import Live
 from rich.spinner import Spinner
 import click
 from .config import ProfileConfig, load_brief
-from .utils import analyze_changes
+from .utils import analyze_changes, filter_protected_files
 from xai_sdk.chat import assistant, system, user
 
 
@@ -148,22 +148,27 @@ def run_grok(
                 output_data = json.loads(response_to_parse)
                 if isinstance(output_data, list):
                     output_data = {"files": output_data}
+                # Filter protected files
+                brief = load_brief()
+                if brief and "files" in output_data:
+                    output_data["files"] = filter_protected_files(output_data["files"], {brief.file})
                 with Path(output_file).open("w") as f:
                     json.dump(output_data, f, indent=2)
+                # Analyze filtered output
+                analyze_changes(input_data, json.dumps(output_data), console)
             except json.JSONDecodeError:
                 console.print(
                     "[yellow]Warning: Response is not valid JSON, writing as text.[/yellow]"
                 )
                 Path(output_file).write_text(response)
+                if input_data:
+                    analyze_changes(input_data, response, console)
         else:
             Path(output_file).write_text(response)
-
-        click.echo(f"Response saved to {output_file}")
-
-        if is_cfold:
-            analyze_changes(input_data, response, console)
+            click.echo(f"Response saved to {output_file}")
     except Exception as e:
         raise click.ClickException(f"Failed to write output: {str(e)}")
+
 
 
 
