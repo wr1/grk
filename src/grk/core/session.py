@@ -11,8 +11,9 @@ from rich.console import Console
 from ..api import call_grok
 from ..models import ProfileConfig
 from ..config import load_brief
-from ..utils import get_change_summary
+from ..utils import get_change_summary, filter_protected_files
 from xai_sdk.chat import assistant, system, user
+import traceback
 
 def recv_full(conn: socket.socket, size: int) -> bytes:
     """Receive exactly size bytes from the socket."""
@@ -89,71 +90,87 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
 
         while True:
             conn, addr = server.accept()
-            # Receive length prefix (4 bytes)
-            length_bytes = recv_full(conn, 4)
-            length = int.from_bytes(length_bytes, 'big')
-            # Receive the exact data
-            data_bytes = recv_full(conn, length)
-            data = data_bytes.decode('utf-8')
-            if not data:
-                conn.close()
-                continue
-            request = json.loads(data)
-            cmd = request.get("cmd")
-            if cmd == "down":
-                send_response(conn, "Shutting down")
-                conn.close()
-                break
-            elif cmd == "list":
-                files = [f["path"] for f in cached_codebase]
-                instructions = []
-                for msg in messages[1:]:  # Skip initial system message
-                    if isinstance(msg, (user, assistant)):
-                        name = msg.name if hasattr(msg, 'name') else "Unnamed"
-                        synopsis = msg.content[:100].strip() + ("..." if len(msg.content) > 100 else "")
-                        instructions.append({"name": name, "synopsis": synopsis})
-                response_data = {"files": files, "instructions": instructions}
-                send_response(conn, response_data)
-                conn.close()
-            elif cmd == "query":
-                prompt = request["prompt"]
-                output = request.get("output", "__temp.json")
-                input_content = request.get("input_content")
-                if input_content:
-                    messages.append(user(f"Additional input:\n```txt\n{input_content}\n```"))
-                messages.append(user(prompt))
-                response = call_grok(messages, model_used, api_key, temperature)
-                messages.append(assistant(response))
+            try:
+                # Receive length prefix (4 bytes)
+                length_bytes = recv_full(conn, 4)
+                length = int.from_bytes(length_bytes, 'big')
+                # Receive the exact data
+                data_bytes = recv_full(conn, length)
+                data = data_bytes.decode('utf-8')
+                if not data:
+                    conn.close()
+                    continue
+                request = json.loads(data)
+                cmd = request.get("cmd")
+                if cmd == "down":
+                    send_response(conn, "Shutting down")
+                    conn.close()
+                    break
+                elif cmd == "list":
+                    files = [f["path"] for f in cached_codebase]
+                    instructions = []
+                    for msg in messages[1:]:  # Skip initial system message
+                        if hasattr(msg, 'role') and msg.role != 'system':
+                            name = getattr(msg, 'name', "Unnamed")
+                            content = getattr(msg, 'content', "")
+                            synopsis = content[:100] if isinstance(content, str) else str(content)[:100]
+                            synopsis = synopsis.strip() + ("..." if len(synopsis) > 100 else "")
+                            instructions.append({"name": name, "synopsis": synopsis})
+                    response_data = {"files": files, "instructions": instructions}
+                    send_response(conn, response_data)
+                    conn.close()
+                elif cmd == "query":
+                    prompt = request["prompt"]
+                    output = request.get("output", "__temp.json")
+                    input_content = request.get("input_content")
+                    if input_content:
+                        messages.append(user(f"Additional input:\n```txt\n{input_content}\n```"))
+                    messages.append(user(prompt))
+                    response = call_grok(messages, model_used, api_key, temperature)
+                    messages.append(assistant(response))
 
-                # Postprocess response
-                cleaned_response, extracted_message = postprocess_response(response)
+                    # Postprocess response
+                    cleaned_response, extracted_message = postprocess_response(response)
 
-                # Prepare for analysis (use cleaned_response for summary and caching)
-                input_for_analysis = {"files": [dict(**f) for f in cached_codebase]}
-                summary = get_change_summary(input_for_analysis, cleaned_response)
+                    # Prepare for analysis (use cleaned_response for summary and caching)
+                    input_for_analysis = {"files": [dict(**f) for f in cached_codebase]}
 
-                # Write output
+                    # Write output
+                    try:
+                        output_data = json.loads(cleaned_response)
+                        if isinstance(output_data, list):
+                            output_data = {"files": output_data}
+                        # Filter protected files
+                        brief = load_brief()
+                        if brief and "files" in output_data:
+                            output_data["files"] = filter_protected_files(output_data["files"], {brief.file})
+                        with Path(output).open("w") as f:
+                            json.dump(output_data, f, indent=2)
+                        # Get summary from filtered output
+                        summary = get_change_summary(input_for_analysis, json.dumps(output_data))
+                        if "files" in output_data:
+                            cached_codebase = apply_cfold_changes(cached_codebase, output_data["files"])
+                            save_cached_codebase(cached_codebase)
+                    except json.JSONDecodeError:
+                        Path(output).write_text(response)  # Fallback to raw if still invalid
+                        summary = "No valid JSON detected; raw response saved. " + get_change_summary(input_for_analysis, cleaned_response)
+
+                    # Send summary and message
+                    send_response(conn, {"summary": summary, "message": extracted_message})
+                    conn.close()
+                else:
+                    send_response(conn, {"error": "Unknown command"})
+                    conn.close()
+            except Exception as e:
+                print(f"Error handling connection: {str(e)}")
+                traceback.print_exc()
                 try:
-                    output_data = json.loads(cleaned_response)
-                    if isinstance(output_data, list):
-                        output_data = {"files": output_data}
-                    with Path(output).open("w") as f:
-                        json.dump(output_data, f, indent=2)
-                    if "files" in output_data:
-                        cached_codebase = apply_cfold_changes(cached_codebase, output_data["files"])
-                        save_cached_codebase(cached_codebase)
-                except json.JSONDecodeError:
-                    Path(output).write_text(response)  # Fallback to raw if still invalid
-                    summary = "No valid JSON detected; raw response saved. " + summary
-
-                # Send summary and message
-                send_response(conn, {"summary": summary, "message": extracted_message})
-                conn.close()
-            else:
+                    send_response(conn, {"error": str(e)})
+                except:
+                    pass
                 conn.close()
     except Exception as e:
         print(f"Daemon error: {str(e)}")
-        import traceback
         traceback.print_exc()
     finally:
         server.close()
@@ -254,6 +271,8 @@ def apply_cfold_changes(existing: List[dict], changes: List[dict]) -> List[dict]
             if not change.get("delete", False):
                 updated.append(change)  # Add new file
     return updated
+
+
 
 
 
