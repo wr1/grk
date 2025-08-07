@@ -17,6 +17,7 @@ from rich.console import Console
 import sys
 import subprocess
 import traceback
+from .utils import print_instruction_tree
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -179,6 +180,35 @@ def session_msg(
         profile = "unknown"
         initial_file = "unknown"
 
+    # Get current instruction summary
+    client_list = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        client_list.connect(("127.0.0.1", port))
+        request_list = {"cmd": "list"}
+        send_request(client_list, request_list)
+        response_list = recv_response(client_list)
+        data_list = json.loads(response_list)
+        if "error" in data_list:
+            console.print(f"[bold red]Error:[/bold red] {data_list['error']}")
+            return
+        instruction_list = data_list.get("instructions", [])
+    except Exception as e:
+        raise click.ClickException(f"Failed to get instruction list: {str(e)}")
+    finally:
+        client_list.close()
+
+    # Prepare adding list
+    adding = []
+    input_content = Path(input).read_text() if input else None
+    if input_content:
+        input_synopsis = input_content[:100].strip().replace("\n", " ") + ("..." if len(input_content) > 100 else "")
+        adding.append({"role": "user", "name": "Unnamed", "synopsis": f"Additional input: ```txt {input_synopsis}```"})
+    prompt_synopsis = message[:100].strip().replace("\n", " ") + ("..." if len(message) > 100 else "")
+    adding.append({"role": "user", "name": "Unnamed", "synopsis": prompt_synopsis})
+
+    # Print instruction tree
+    print_instruction_tree(console, instruction_list, adding=adding)
+
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         client.connect(("127.0.0.1", port))
@@ -193,7 +223,6 @@ def session_msg(
         if input:
             console.print(f" Additional input file: [cyan]{input}[/cyan]")
 
-        input_content = Path(input).read_text() if input else None
         request = {
             "cmd": "query",
             "prompt": message,
@@ -360,11 +389,8 @@ def session_list():
         console.print("[bold green]Current Files:[/bold green]")
         for f in data.get("files", []):
             console.print(f" - {f}")
-        console.print("[bold green]Instruction Stack:[/bold green]")
-        for i, instr in enumerate(data.get("instructions", []), 1):
-            name = instr.get("name", "Unnamed")
-            synopsis = instr.get("synopsis", "No synopsis available")
-            console.print(f" {i}: {name} - {synopsis}")
+        instructions = data.get("instructions", [])
+        print_instruction_tree(console, instructions, title="Instruction Stack:")
     except ConnectionRefusedError:
         error_msg = "Session not responding."
         if pid_file.exists():
@@ -390,6 +416,7 @@ def session_list():
 
 if __name__ == "__main__":
     main()
+
 
 
 
