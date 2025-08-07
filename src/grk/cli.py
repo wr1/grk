@@ -208,8 +208,9 @@ def session_msg(
     prompt_synopsis = message[:100].strip().replace("\n", " ") + ("..." if len(message) > 100 else "")
     adding.append({"role": "user", "name": "Unnamed", "synopsis": prompt_synopsis})
 
-    # Print instruction tree
-    print_instruction_tree(console, instruction_list, adding=adding)
+    # Print instruction backlog and current submission separately
+    print_instruction_tree(console, instruction_list, title="Instruction Backlog:")
+    print_instruction_tree(console, adding, title="Current Submission:")
 
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
