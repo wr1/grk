@@ -5,6 +5,7 @@ import difflib
 from collections import defaultdict
 from rich.console import Console
 from pathlib import Path
+from typing import List, Set
 
 def analyze_changes(input_data: dict, response: str, console: Console):
     """Analyze and print changes if response is cfold format."""
@@ -133,6 +134,16 @@ def get_change_summary(input_data: dict, response: str) -> str:
         return "\n".join(summary_lines)
     except json.JSONDecodeError:
         return "Response not in JSON format; no changes applied."
+
+def filter_protected_files(files_list: List[dict], protected_paths: Set[str]) -> List[dict]:
+    """Filter out changes to protected files from the list."""
+    filtered = []
+    for f in files_list:
+        if f["path"] in protected_paths:
+            continue
+        filtered.append(f)
+    return filtered
+
 
 
 
