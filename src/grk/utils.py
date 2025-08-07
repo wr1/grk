@@ -5,7 +5,7 @@ import difflib
 from collections import defaultdict
 from rich.console import Console
 from pathlib import Path
-from typing import List, Set
+from typing import List, Set, Dict, Any
 
 def analyze_changes(input_data: dict, response: str, console: Console):
     """Analyze and print changes if response is cfold format."""
@@ -143,6 +143,37 @@ def filter_protected_files(files_list: List[dict], protected_paths: Set[str]) ->
             continue
         filtered.append(f)
     return filtered
+
+def build_instructions_from_messages(messages: List) -> List[Dict[str, Any]]:
+    """Build list of instruction dicts from messages for summary."""
+    instructions = []
+    for msg in messages:
+        role = msg["role"]
+        name = msg.get("name", "Unnamed")
+        content = msg["content"]
+        synopsis = content[:100].strip() + ("..." if len(content) > 100 else "")
+        synopsis = synopsis.replace("\n", " ")
+        instructions.append({"role": role, "name": name, "synopsis": synopsis})
+    return instructions
+
+def print_instruction_tree(console: Console, instructions: List[Dict[str, Any]], adding: List[Dict[str, Any]] = None, title: str = "Instruction Summary:"):
+    """Print instruction summary in a tree-like format."""
+    if adding is None:
+        adding = []
+    all_instr = instructions + adding
+    if not all_instr:
+        console.print("[yellow]No instructions.[/yellow]")
+        return
+    console.print(f"[bold green]{title}[/bold green]")
+    lines = []
+    for idx, instr in enumerate(all_instr):
+        is_last = idx == len(all_instr) - 1
+        prefix = "└── " if is_last else "├── "
+        name_str = f" ({instr['name']})" if instr['name'] != "Unnamed" else ""
+        synopsis = instr['synopsis']
+        lines.append(f"{prefix}{instr['role']}{name_str}: {synopsis}")
+    console.print("\n".join(lines))
+
 
 
 
