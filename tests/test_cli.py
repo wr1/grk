@@ -130,12 +130,21 @@ def test_session_msg_postprocessing(runner, tmp_path, monkeypatch, mocker):
     mock_socket.connect = mocker.Mock()
     mock_socket.send = mocker.Mock()
 
+    # Mock response for 'list' command
+    list_resp = {"files": [], "instructions": []}
+    list_resp_json = json.dumps(list_resp)
+    list_length = len(list_resp_json)
+    list_length_bytes = list_length.to_bytes(4, 'big')
+    list_data_bytes = list_resp_json.encode()
+
+    # Mock response for 'query' command
     resp = {"summary": "= No changes detected.", "message": "Here's the update:"}
     resp_json = json.dumps(resp)
     length = len(resp_json)
     length_bytes = length.to_bytes(4, 'big')
     data_bytes = resp_json.encode()
-    mock_socket.recv.side_effect = [length_bytes, data_bytes]
+
+    mock_socket.recv.side_effect = [list_length_bytes, list_data_bytes, length_bytes, data_bytes]
     mocker.patch("socket.socket", return_value=mock_socket)
 
     result = runner.invoke(main, ["session", "msg", "Test prompt", "-o", "__temp.json"])
@@ -170,6 +179,7 @@ def test_postprocess_response(raw_response, expected_cleaned, expected_message):
         "\n", ""
     )  # Ignore formatting
     assert message == expected_message
+
 
 
 
