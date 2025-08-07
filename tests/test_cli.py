@@ -64,9 +64,7 @@ def test_run_command_file_not_found(runner, tmp_path, monkeypatch):
     "profile",
     ["default", "py", "doc"],
 )
-def test_run_command_with_profile(
-    runner, tmp_path, monkeypatch, profile, mocker
-):
+def test_run_command_with_profile(runner, tmp_path, monkeypatch, profile, mocker):
     """Test run command with different profiles."""
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("XAI_API_KEY", "dummy_key")
@@ -94,9 +92,9 @@ def test_run_command_with_profile(
     assert "Running grk with the following settings:" in result.output
 
     # Check if API was called with correct model based on profile
-    expected_models = {"default": "grok-4", "py": "grok-3-mini-fast", "doc": "grok-3"}
+    expected_models = {"default": "grok-4", "py": "grok-4", "doc": "grok-4"}
     called_model = mock_client.chat.create.call_args.kwargs["model"]
-    assert called_model == expected_models.get(profile, "grok-3-mini-fast")
+    assert called_model == expected_models.get(profile, "grok-4")
 
     # Check output files
     assert Path("output.json").exists()  # Adjusted to match default
@@ -122,7 +120,9 @@ def test_session_msg_postprocessing(runner, tmp_path, monkeypatch, mocker):
     monkeypatch.setenv("XAI_API_KEY", "dummy_key")
     Path("initial.json").write_text('{"files": []}')
     Path(".grk_session.pid").write_text("12345")
-    Path(".grk_session.json").write_text(json.dumps({"profile": "default", "initial_file": "initial.json", "pid": 12345}))
+    Path(".grk_session.json").write_text(
+        json.dumps({"profile": "default", "initial_file": "initial.json", "pid": 12345})
+    )
     Path(".grk_session.port").write_text("12345")
 
     # Mock daemon_process and socket for testing postprocessing
@@ -134,17 +134,22 @@ def test_session_msg_postprocessing(runner, tmp_path, monkeypatch, mocker):
     list_resp = {"files": [], "instructions": []}
     list_resp_json = json.dumps(list_resp)
     list_length = len(list_resp_json)
-    list_length_bytes = list_length.to_bytes(4, 'big')
+    list_length_bytes = list_length.to_bytes(4, "big")
     list_data_bytes = list_resp_json.encode()
 
     # Mock response for 'query' command
     resp = {"summary": "= No changes detected.", "message": "Here's the update:"}
     resp_json = json.dumps(resp)
     length = len(resp_json)
-    length_bytes = length.to_bytes(4, 'big')
+    length_bytes = length.to_bytes(4, "big")
     data_bytes = resp_json.encode()
 
-    mock_socket.recv.side_effect = [list_length_bytes, list_data_bytes, length_bytes, data_bytes]
+    mock_socket.recv.side_effect = [
+        list_length_bytes,
+        list_data_bytes,
+        length_bytes,
+        data_bytes,
+    ]
     mocker.patch("socket.socket", return_value=mock_socket)
 
     result = runner.invoke(main, ["session", "msg", "Test prompt", "-o", "__temp.json"])
@@ -179,8 +184,3 @@ def test_postprocess_response(raw_response, expected_cleaned, expected_message):
         "\n", ""
     )  # Ignore formatting
     assert message == expected_message
-
-
-
-
-
