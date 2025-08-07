@@ -11,7 +11,7 @@ from rich.console import Console
 from ..api import call_grok
 from ..models import ProfileConfig
 from ..config import load_brief
-from ..utils import get_change_summary, filter_protected_files
+from ..utils import get_change_summary, filter_protected_files, build_instructions_from_messages
 from xai_sdk.chat import assistant, system, user
 import traceback
 
@@ -71,7 +71,7 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
             else:
                 raise ValueError(f"Unknown message type: {role}")
             if role == "user" and instr.get("name"):
-                msg["name"] = instr["name"]
+                msg.name = instr["name"]
             messages.append(msg)
 
         files_json = json.dumps(cached_codebase, indent=2)
@@ -108,15 +108,7 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                     break
                 elif cmd == "list":
                     files = [f["path"] for f in cached_codebase]
-                    instructions = []
-                    for msg in messages:  # Include all messages
-                        role = msg["role"]
-                        name = msg.get("name", "Unnamed")
-                        content = msg["content"]
-                        synopsis = (content[:100] if isinstance(content, str) else str(content)[:100])
-                        synopsis = synopsis.strip() + ("..." if len(synopsis) == 100 else "")
-                        synopsis = synopsis.replace("\n", " ")
-                        instructions.append({"role": role, "name": name, "synopsis": synopsis})
+                    instructions = build_instructions_from_messages(messages)
                     response_data = {"files": files, "instructions": instructions}
                     send_response(conn, response_data)
                     conn.close()
