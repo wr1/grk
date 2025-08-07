@@ -5,7 +5,7 @@
 ## Key Features
 
 - **Profile-based Configuration**: Manage multiple configurations for different use cases with a `.grkrc` file.
-- **Flexible Input/Output**: Process input files and save responses as text and JSON.
+- **Flexible Input/Output**: Process input files and save responses as JSON and text.
 - **Role-based System Messages**: Choose predefined roles for Grok (e.g., Python programmer, lawyer) to tailor responses.
 - **Terminal Visualization**: Enhanced user experience with rich terminal output for better readability.
 
@@ -18,3 +18,6 @@
 - [Installation](./installation.md)
 - [Usage Guide](./usage.md)
 - [Configuration](./configuration.md)
+
+
+

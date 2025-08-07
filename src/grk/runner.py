@@ -10,8 +10,13 @@ from concurrent.futures import ThreadPoolExecutor
 from rich.live import Live
 from rich.spinner import Spinner
 import click
-from .config import ProfileConfig
-from .utils import analyze_changes
+from .config import ProfileConfig, load_brief
+from .utils import (
+    analyze_changes,
+    filter_protected_files,
+    build_instructions_from_messages,
+    print_instruction_tree,
+)
 from xai_sdk.chat import assistant, system, user
 
 
@@ -23,12 +28,11 @@ def run_grok(
     profile: str = "default",
 ):
     """Execute the Grok LLM run logic with given inputs and config."""
-    model_used = config.model or "grok-3-mini-fast"
+    model_used = config.model or "grok-4"
     role_from_config = (
         config.role or "you are an expert python programmer, writing clean code"
     )
     output_file = config.output or "output.json"
-    json_out_file = config.json_out or "meta_output.json"
     prompt_prepend = config.prompt_prepend or ""
     temperature = config.temperature or 0
 
@@ -42,13 +46,39 @@ def run_grok(
     if role_from_config:
         messages.append(system(role_from_config))
 
+    # Add brief if configured
+    brief = load_brief()
+    if brief:
+        try:
+            brief_content = Path(brief.file).read_text()
+            brief_role = brief.role.lower()
+            if brief_role == "system":
+                messages.append(system(brief_content))
+            elif brief_role == "user":
+                messages.append(user(brief_content))
+            elif brief_role == "assistant":
+                messages.append(assistant(brief_content))
+            else:
+                raise ValueError(f"Invalid role for brief: {brief_role}")
+        except FileNotFoundError:
+            click.echo(f"Warning: Brief file '{brief.file}' not found, skipping.")
+        except Exception as e:
+            raise click.ClickException(f"Failed to load brief: {str(e)}")
+
     try:
         input_data = json.loads(file_content)
+        if isinstance(input_data, list):
+            input_data = {"instructions": [], "files": input_data}
+        elif isinstance(input_data, dict):
+            if "files" in input_data:
+                input_data["instructions"] = input_data.get("instructions", [])
+
         is_cfold = (
             isinstance(input_data, dict)
             and "instructions" in input_data
             and "files" in input_data
         )
+
         if is_cfold:
             for instr in input_data["instructions"]:
                 role = instr["type"]
@@ -86,6 +116,10 @@ def run_grok(
     console.print(f" File: [cyan]{file}[/cyan]")
     console.print(f" Temperature: [red]{temperature}[/red]")
     console.print(f" Prompt: [cyan]{message}[/cyan]")
+
+    # Print instruction summary
+    instruction_list = build_instructions_from_messages(messages)
+    print_instruction_tree(console, instruction_list)
 
     console.print("[bold green]Calling Grok API...[/bold green]")
     start_time = time.time()
@@ -125,33 +159,27 @@ def run_grok(
                 response_to_parse = inner
             try:
                 output_data = json.loads(response_to_parse)
+                if isinstance(output_data, list):
+                    output_data = {"files": output_data}
+                # Filter protected files
+                brief = load_brief()
+                if brief and "files" in output_data:
+                    output_data["files"] = filter_protected_files(
+                        output_data["files"], {brief.file}
+                    )
                 with Path(output_file).open("w") as f:
                     json.dump(output_data, f, indent=2)
+                # Analyze filtered output
+                analyze_changes(input_data, json.dumps(output_data), console)
             except json.JSONDecodeError:
                 console.print(
                     "[yellow]Warning: Response is not valid JSON, writing as text.[/yellow]"
                 )
                 Path(output_file).write_text(response)
+                if input_data:
+                    analyze_changes(input_data, response, console)
         else:
             Path(output_file).write_text(response)
-
-        with Path(json_out_file).open("w") as f:
-            json.dump(
-                {
-                    "input": file_content,
-                    "prompt": full_prompt,
-                    "response": response,
-                    "used_role": role_from_config,
-                    "used_model": model_used,
-                    "used_profile": profile,
-                    "temperature": temperature,
-                },
-                f,
-                indent=2,
-            )
-        click.echo(f"Response saved to {output_file} and {json_out_file}")
-
-        if is_cfold:
-            analyze_changes(input_data, response, console)
+            click.echo(f"Response saved to {output_file}")
     except Exception as e:
         raise click.ClickException(f"Failed to write output: {str(e)}")

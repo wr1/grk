@@ -18,3 +18,6 @@ def test_call_grok_api_failure(mocker):
         call_grok(messages, "grok-3", "dummy_key")
     assert "API request failed" in str(exc_info.value)
 
+
+
+

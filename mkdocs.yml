@@ -1,22 +1,27 @@
-site_name: grk docs
+site_name: GRK Documentation
+repo_url: https://github.com/wr1/grk
+repo_name: wr1/grk
 theme:
   name: material
   features:
     - content.code.copy
     - navigation.sections
+  font:
+    text: Ubuntu
+    code: Ubuntu Mono
   palette:
-    - scheme: default
-      primary: indigo
-      accent: indigo
-      toggle:
-        icon: material/brightness-7
-        name: Switch to dark mode
     - scheme: slate
       primary: indigo
       accent: indigo
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
 nav:
   - Home: index.md
   - Installation: installation.md
@@ -28,3 +33,6 @@ markdown_extensions:
   - pymdownx.superfences
 plugins:
   - search
+
+
+
