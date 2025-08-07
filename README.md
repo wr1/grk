@@ -25,19 +25,19 @@ You can create a `.grkrc` YAML file in the current directory to set default opti
 ```yaml
 profiles:
     default:
-        model: grok4
+        model: grok-4
         role: expert engineer and dev
         output: output.json
         prompt_prepend: " "
         temperature: 0.1  
     law:
-        model: grok4
+        model: grok-4
         role: lawyer, expert legal scholar
         output: output.json
         prompt_prepend: ""
         temperature: 0.15
     docs:
-        model: grok4
+        model: grok-4
         role: documentation-specialist
         output: output.json
         prompt_prepend: "aim for conciseness and documenting use over implementation, "
