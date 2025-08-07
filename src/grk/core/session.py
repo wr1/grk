@@ -11,19 +11,25 @@ from rich.console import Console
 from ..api import call_grok
 from ..models import ProfileConfig
 from ..config import load_brief
-from ..utils import get_change_summary, filter_protected_files, build_instructions_from_messages
+from ..utils import (
+    get_change_summary,
+    filter_protected_files,
+    build_instructions_from_messages,
+)
 from xai_sdk.chat import assistant, system, user
 import traceback
 
+
 def recv_full(conn: socket.socket, size: int) -> bytes:
     """Receive exactly size bytes from the socket."""
-    data = b''
+    data = b""
     while len(data) < size:
         chunk = conn.recv(min(4096, size - len(data)))
         if not chunk:
             raise ValueError("Incomplete data received")
         data += chunk
     return data
+
 
 def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
     """Run the background daemon process for session management."""
@@ -44,11 +50,11 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
             try:
                 brief_content = Path(brief.file).read_text()
                 brief_role = brief.role.lower()
-                if brief_role == 'system':
+                if brief_role == "system":
                     messages.append(system(brief_content))
-                elif brief_role == 'user':
+                elif brief_role == "user":
                     messages.append(user(brief_content))
-                elif brief_role == 'assistant':
+                elif brief_role == "assistant":
                     messages.append(assistant(brief_content))
                 else:
                     raise ValueError(f"Invalid role for brief: {brief_role}")
@@ -77,7 +83,7 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
         files_json = json.dumps(cached_codebase, indent=2)
         messages.append(user(f"Current codebase files:\n```json\n{files_json}\n```"))
 
-        model_used = config.model or "grok-3-mini-fast"
+        model_used = config.model or "grok-4"
         temperature = config.temperature or 0
 
         # Set up server with dynamic port
@@ -93,10 +99,10 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
             try:
                 # Receive length prefix (4 bytes)
                 length_bytes = recv_full(conn, 4)
-                length = int.from_bytes(length_bytes, 'big')
+                length = int.from_bytes(length_bytes, "big")
                 # Receive the exact data
                 data_bytes = recv_full(conn, length)
-                data = data_bytes.decode('utf-8')
+                data = data_bytes.decode("utf-8")
                 if not data:
                     conn.close()
                     continue
@@ -117,7 +123,9 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                     output = request.get("output", "__temp.json")
                     input_content = request.get("input_content")
                     if input_content:
-                        messages.append(user(f"Additional input:\n```txt\n{input_content}\n```"))
+                        messages.append(
+                            user(f"Additional input:\n```txt\n{input_content}\n```")
+                        )
                     messages.append(user(prompt))
                     response = call_grok(messages, model_used, api_key, temperature)
                     messages.append(assistant(response))
@@ -136,20 +144,33 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                         # Filter protected files
                         brief = load_brief()
                         if brief and "files" in output_data:
-                            output_data["files"] = filter_protected_files(output_data["files"], {brief.file})
+                            output_data["files"] = filter_protected_files(
+                                output_data["files"], {brief.file}
+                            )
                         with Path(output).open("w") as f:
                             json.dump(output_data, f, indent=2)
                         # Get summary from filtered output
-                        summary = get_change_summary(input_for_analysis, json.dumps(output_data))
+                        summary = get_change_summary(
+                            input_for_analysis, json.dumps(output_data)
+                        )
                         if "files" in output_data:
-                            cached_codebase = apply_cfold_changes(cached_codebase, output_data["files"])
+                            cached_codebase = apply_cfold_changes(
+                                cached_codebase, output_data["files"]
+                            )
                             save_cached_codebase(cached_codebase)
                     except json.JSONDecodeError:
-                        Path(output).write_text(response)  # Fallback to raw if still invalid
-                        summary = "No valid JSON detected; raw response saved. " + get_change_summary(input_for_analysis, cleaned_response)
+                        Path(output).write_text(
+                            response
+                        )  # Fallback to raw if still invalid
+                        summary = (
+                            "No valid JSON detected; raw response saved. "
+                            + get_change_summary(input_for_analysis, cleaned_response)
+                        )
 
                     # Send summary and message
-                    send_response(conn, {"summary": summary, "message": extracted_message})
+                    send_response(
+                        conn, {"summary": summary, "message": extracted_message}
+                    )
                     conn.close()
                 else:
                     send_response(conn, {"error": "Unknown command"})
@@ -173,6 +194,7 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
         if port_file.exists():
             port_file.unlink()
 
+
 def send_response(conn: socket.socket, resp: Union[str, dict]):
     """Send response with length prefix."""
     if isinstance(resp, str):
@@ -180,8 +202,9 @@ def send_response(conn: socket.socket, resp: Union[str, dict]):
     else:
         resp_json = json.dumps(resp)
     length = len(resp_json)
-    length_bytes = length.to_bytes(4, 'big')
+    length_bytes = length.to_bytes(4, "big")
     conn.send(length_bytes + resp_json.encode())
+
 
 def postprocess_response(response: str) -> Tuple[str, str]:
     """Postprocess the response to extract/clean JSON and any message."""
@@ -218,7 +241,9 @@ def postprocess_response(response: str) -> Tuple[str, str]:
         if match:
             try:
                 json_data = json.loads(match.group(1))
-                extracted_message = original_response.replace(match.group(1), "").strip()
+                extracted_message = original_response.replace(
+                    match.group(1), ""
+                ).strip()
                 if isinstance(json_data, list):
                     return json.dumps({"files": json_data}), extracted_message
                 elif isinstance(json_data, dict) and "files" in json_data:
@@ -227,6 +252,7 @@ def postprocess_response(response: str) -> Tuple[str, str]:
                 pass
         # If no valid JSON, whole response is message
         return "", original_response
+
 
 def load_cached_codebase() -> List[dict]:
     """Load the cached codebase from a local file."""
@@ -238,6 +264,7 @@ def load_cached_codebase() -> List[dict]:
             click.echo("Warning: Cache file is corrupted. Starting with empty cache.")
     return []  # Return empty list if no cache
 
+
 def save_cached_codebase(codebase: List[dict]):
     """Save the codebase to a local cache file."""
     cache_file = Path(".grk_cache.json")
@@ -246,12 +273,13 @@ def save_cached_codebase(codebase: List[dict]):
     except Exception as e:
         click.echo(f"Warning: Failed to save cache: {str(e)}")
 
+
 def apply_cfold_changes(existing: List[dict], changes: List[dict]) -> List[dict]:
     """Apply cfold changes to the existing codebase."""
     updated = existing.copy()  # Start with existing
     for change in changes:
         path = change.get("path")
-        if not path or path.startswith(('/', '../')):  # Validate path
+        if not path or path.startswith(("/", "../")):  # Validate path
             continue  # Skip invalid paths
         for idx, item in enumerate(updated):
             if item["path"] == path:
@@ -264,17 +292,3 @@ def apply_cfold_changes(existing: List[dict], changes: List[dict]) -> List[dict]
             if not change.get("delete", False):
                 updated.append(change)  # Add new file
     return updated
-
-
-
-
-
-
-
-
-
-
-
-
-
-
