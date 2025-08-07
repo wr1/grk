@@ -11,7 +11,12 @@ from rich.live import Live
 from rich.spinner import Spinner
 import click
 from .config import ProfileConfig, load_brief
-from .utils import analyze_changes, filter_protected_files, build_instructions_from_messages, print_instruction_tree
+from .utils import (
+    analyze_changes,
+    filter_protected_files,
+    build_instructions_from_messages,
+    print_instruction_tree,
+)
 from xai_sdk.chat import assistant, system, user
 
 
@@ -23,7 +28,7 @@ def run_grok(
     profile: str = "default",
 ):
     """Execute the Grok LLM run logic with given inputs and config."""
-    model_used = config.model or "grok-3-mini-fast"
+    model_used = config.model or "grok-4"
     role_from_config = (
         config.role or "you are an expert python programmer, writing clean code"
     )
@@ -47,11 +52,11 @@ def run_grok(
         try:
             brief_content = Path(brief.file).read_text()
             brief_role = brief.role.lower()
-            if brief_role == 'system':
+            if brief_role == "system":
                 messages.append(system(brief_content))
-            elif brief_role == 'user':
+            elif brief_role == "user":
                 messages.append(user(brief_content))
-            elif brief_role == 'assistant':
+            elif brief_role == "assistant":
                 messages.append(assistant(brief_content))
             else:
                 raise ValueError(f"Invalid role for brief: {brief_role}")
@@ -68,7 +73,11 @@ def run_grok(
             if "files" in input_data:
                 input_data["instructions"] = input_data.get("instructions", [])
 
-        is_cfold = isinstance(input_data, dict) and "instructions" in input_data and "files" in input_data
+        is_cfold = (
+            isinstance(input_data, dict)
+            and "instructions" in input_data
+            and "files" in input_data
+        )
 
         if is_cfold:
             for instr in input_data["instructions"]:
@@ -155,7 +164,9 @@ def run_grok(
                 # Filter protected files
                 brief = load_brief()
                 if brief and "files" in output_data:
-                    output_data["files"] = filter_protected_files(output_data["files"], {brief.file})
+                    output_data["files"] = filter_protected_files(
+                        output_data["files"], {brief.file}
+                    )
                 with Path(output_file).open("w") as f:
                     json.dump(output_data, f, indent=2)
                 # Analyze filtered output
@@ -172,12 +183,3 @@ def run_grok(
             click.echo(f"Response saved to {output_file}")
     except Exception as e:
         raise click.ClickException(f"Failed to write output: {str(e)}")
-
-
-
-
-
-
-
-
-
