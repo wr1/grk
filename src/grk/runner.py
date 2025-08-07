@@ -11,7 +11,7 @@ from rich.live import Live
 from rich.spinner import Spinner
 import click
 from .config import ProfileConfig, load_brief
-from .utils import analyze_changes, filter_protected_files
+from .utils import analyze_changes, filter_protected_files, build_instructions_from_messages, print_instruction_tree
 from xai_sdk.chat import assistant, system, user
 
 
@@ -108,6 +108,10 @@ def run_grok(
     console.print(f" Temperature: [red]{temperature}[/red]")
     console.print(f" Prompt: [cyan]{message}[/cyan]")
 
+    # Print instruction summary
+    instruction_list = build_instructions_from_messages(messages)
+    print_instruction_tree(console, instruction_list)
+
     console.print("[bold green]Calling Grok API...[/bold green]")
     start_time = time.time()
 
@@ -168,6 +172,7 @@ def run_grok(
             click.echo(f"Response saved to {output_file}")
     except Exception as e:
         raise click.ClickException(f"Failed to write output: {str(e)}")
+
 
 
 
