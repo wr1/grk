@@ -10,13 +10,13 @@ Use GROK API in the terminal, control input, output and profiles.
 - Precisely control which files go into `grok` (contrast with agents).
 
 ## Installation
-With `pip`
+<!-- With `pip`
 ```bash
-pip install . 
-```
+pip install .  
+```-->
 Or `uv`
 ```bash
-uv pip install . 
+uv pip install https://github.com/wr1/grk.git
 ```
 
 ## Configuration
@@ -67,15 +67,13 @@ grk session down
 In session mode, responses are postprocessed: any explanatory messages are printed to the console, and the output file is cleaned to ensure valid JSON in {'files': [...]} format (if possible).
 
 ### Use with cfold
-Chaining with [cfold](https://github.com/wr1/cfold) allows making whole codebase changes, example below using [shorthand](resources/shorthand.fish).
+Chaining with [cfold](https://github.com/wr1/cfold) allows making whole codebase changes, example below using [fish shorthand](resources/shorthand.fish).
 ```bash
 cf # fold the codebase, creates codefold.json
 gu codefold.json # session up
 gm "review the docs and sync with current cli" # message the session
-cu __temp.json # unfold the response 
-
-... # more messages
-
+cu __temp.json  # unfold the response 
+...             # more messages
 gd # close the session
 ```
 
