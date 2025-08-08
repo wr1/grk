@@ -173,11 +173,20 @@ def print_instruction_tree(console: Console, instructions: List[Dict[str, Any]],
         is_last = idx == len(all_instr) - 1
         prefix = "└── " if is_last else "├── "
         role = instr.get('role', 'unknown')
+        # Map integer-like roles to spelled-out versions
+        role_map = {
+            '1': 'system',
+            '2': 'user',
+            '3': 'assistant'
+        }
+        role_str = str(role)
+        role = role_map.get(role_str, role)
         name = instr.get('name', 'Unnamed')
         synopsis = instr.get('synopsis', '')
         name_str = f" ({name})" if name != "Unnamed" else ""
         lines.append(f"{prefix}{role}{name_str}: {synopsis}")
     console.print("\n".join(lines))
+
 
 
 
