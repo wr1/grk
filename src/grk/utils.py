@@ -5,6 +5,7 @@ import difflib
 from collections import defaultdict
 from rich.console import Console
 from typing import List, Set, Dict, Any
+import re
 
 
 def analyze_changes(input_data: dict, response: str, console: Console):
@@ -218,6 +219,12 @@ def build_instructions_from_messages(messages: List) -> List[Dict[str, Any]]:
                 content_str = content.content
             else:
                 content_str = str(content)
+
+        # Fallback for custom repr like [text: "..." ]
+        match = re.match(r'^\[text: "(.*)" \]$', content_str)
+        if match:
+            content_str = match.group(1)
+
         if not content_str.strip():
             continue  # Skip empty instructions
         synopsis = content_str[:100].strip() + ("..." if len(content_str) > 100 else "")
