@@ -192,19 +192,19 @@ def build_instructions_from_messages(messages: List) -> List[Dict[str, Any]]:
         role = msg.role
         name = getattr(msg, "name", "Unnamed")
         content = msg.content
-        # Extract text content assuming content is a list of dicts
-        if isinstance(content, list):
-            content_str = " ".join(
-                [
-                    part.get("text", "")
-                    for part in content
-                    if isinstance(part, dict) and "text" in part
-                ]
-            )
-        elif isinstance(content, dict) and "text" in content:
-            content_str = content["text"]
-        elif isinstance(content, str):
+        # Robust extraction of text content
+        if isinstance(content, str):
             content_str = content
+        elif isinstance(content, dict):
+            content_str = content.get("text", "")
+        elif isinstance(content, list):
+            texts = []
+            for item in content:
+                if isinstance(item, str):
+                    texts.append(item)
+                elif isinstance(item, dict):
+                    texts.append(item.get("text", ""))
+            content_str = " ".join(texts)
         else:
             content_str = str(content)
         if not content_str.strip():
