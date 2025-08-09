@@ -4,6 +4,7 @@ from rich.console import Console
 from grk.utils import print_instruction_tree, build_instructions_from_messages
 from xai_sdk.chat import system, user, assistant
 import re
+import pytest
 
 
 def strip_ansi(text: str) -> str:
