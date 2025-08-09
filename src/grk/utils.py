@@ -196,17 +196,28 @@ def build_instructions_from_messages(messages: List) -> List[Dict[str, Any]]:
         if isinstance(content, str):
             content_str = content
         elif isinstance(content, dict):
-            content_str = content.get("text", "")
+            content_str = content.get("text", content.get("content", ""))
         elif isinstance(content, list):
             texts = []
             for item in content:
                 if isinstance(item, str):
                     texts.append(item)
                 elif isinstance(item, dict):
-                    texts.append(item.get("text", ""))
+                    texts.append(item.get("text", item.get("content", "")))
+                elif hasattr(item, "text"):
+                    texts.append(item.text)
+                elif hasattr(item, "content"):
+                    texts.append(item.content)
+                else:
+                    texts.append(str(item))
             content_str = " ".join(texts)
         else:
-            content_str = str(content)
+            if hasattr(content, "text"):
+                content_str = content.text
+            elif hasattr(content, "content"):
+                content_str = content.content
+            else:
+                content_str = str(content)
         if not content_str.strip():
             continue  # Skip empty instructions
         synopsis = content_str[:100].strip() + ("..." if len(content_str) > 100 else "")
