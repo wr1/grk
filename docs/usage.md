@@ -16,6 +16,7 @@ Start a background session, query it multiple times, list details, and shut it d
 
 ```bash
 grk session up <initial_file> [-p <profile>]
+grk session new <file.json>  # Renew instruction stack with new file
 grk session msg <prompt> [-o <output>] [-i <input_file>]
 grk session list  # List session details
 grk session down
@@ -54,6 +55,7 @@ grk -h
 grk --help
 grk session --help  # For session-specific help
 ```
+
 
 
 

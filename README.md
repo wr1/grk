@@ -10,13 +10,13 @@ Use GROK API in the terminal, control input, output and profiles.
 - Precisely control which files go into `grok` (contrast with agents).
 
 ## Installation
-With `pip`
+<!-- With `pip`
 ```bash
-pip install . 
-```
+pip install .  
+```-->
 Or `uv`
 ```bash
-uv pip install . 
+uv pip install https://github.com/wr1/grk.git
 ```
 
 ## Configuration
@@ -66,25 +66,16 @@ grk session down
 
 In session mode, responses are postprocessed: any explanatory messages are printed to the console, and the output file is cleaned to ensure valid JSON in {'files': [...]} format (if possible).
 
-### Advanced use
-Chaining with [cfold](https://github.com/wr1/cfold) allows making whole codebase changes. 
+### Use with cfold
+Chaining with [cfold](https://github.com/wr1/cfold) allows making whole codebase changes, example below using [fish shorthand](resources/shorthand.fish).
 ```bash
-# fold the local python project into a text file
-cfold fold -o folded_project.json
-# run instructions on the codebase
-grk run folded_project.json "change the CLI framework from argparse to click"  
-# unfold the changes
-cfold unfold output.json
+cf # fold the codebase, creates codefold.json
+gu codefold.json # session up
+gm "review the docs and sync with current cli" # message the session
+cu __temp.json  # unfold the response 
+...             # more messages
+gd # close the session
 ```
-This can be wrapped into a shell function for convenient terminal use, for example in `fish`: 
-```shell
-function g 
-    cfold fold -o folded_project.json
-    grk run folded_project.json $argv    
-    cfold unfold output.json
-end
-```
-
 
 All settings are governed by the specified profile in .grkrc. If no .grkrc exists, it uses the default profile.
 
@@ -94,13 +85,5 @@ All settings are governed by the specified profile in .grkrc. If no .grkrc exist
 
 ## License 
 MIT
-
-<!-- ## Documentation
-
-For detailed documentation, visit our [MkDocs site](./docs/index.md) or run `mkdocs serve` locally after installing dependencies with `uv add mkdocs mkdocs-material`. -->
-
-
-
-
 
 

@@ -27,9 +27,3 @@ def call_grok(
         return response
     except Exception as e:
         raise click.ClickException(f"API request failed: {str(e)}")
-
-
-
-
-
-

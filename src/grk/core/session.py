@@ -5,9 +5,8 @@ import re
 from typing import List, Union, Tuple
 from pathlib import Path
 import socket
-import os
+import time
 import click
-from rich.console import Console
 from ..api import call_grok
 from ..models import ProfileConfig
 from ..config import load_brief
@@ -118,6 +117,55 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                     response_data = {"files": files, "instructions": instructions}
                     send_response(conn, response_data)
                     conn.close()
+                elif cmd == "new":
+                    new_file = request["file"]
+                    new_data = json.loads(Path(new_file).read_text())
+                    # Reset messages
+                    messages.clear()
+                    messages.append(system(role_from_config))
+                    # Add brief if configured
+                    if brief:
+                        try:
+                            brief_content = Path(brief.file).read_text()
+                            brief_role = brief.role.lower()
+                            if brief_role == "system":
+                                messages.append(system(brief_content))
+                            elif brief_role == "user":
+                                messages.append(user(brief_content))
+                            elif brief_role == "assistant":
+                                messages.append(assistant(brief_content))
+                        except Exception as e:
+                            send_response(
+                                conn, {"error": f"Failed to load brief: {str(e)}"}
+                            )
+                            conn.close()
+                            continue
+                    # Add new instructions
+                    new_instructions = new_data.get("instructions", [])
+                    for instr in new_instructions:
+                        role = instr["type"]
+                        content = instr["content"]
+                        if role == "system":
+                            msg = system(content)
+                        elif role == "user":
+                            msg = user(content)
+                        elif role == "assistant":
+                            msg = assistant(content)
+                        else:
+                            raise ValueError(f"Unknown message type: {role}")
+                        if role == "user" and instr.get("name"):
+                            msg.name = instr["name"]
+                        messages.append(msg)
+                    # Update cached codebase
+                    cached_codebase = new_data.get("files", [])
+                    save_cached_codebase(cached_codebase)
+                    # Append codebase message
+                    files_json = json.dumps(cached_codebase, indent=2)
+                    messages.append(
+                        user(f"Current codebase files:\n```json\n{files_json}\n```")
+                    )
+                    send_response(conn, {"message": "Instruction stack renewed."})
+                    conn.close()
                 elif cmd == "query":
                     prompt = request["prompt"]
                     output = request.get("output", "__temp.json")
@@ -127,7 +175,10 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                             user(f"Additional input:\n```txt\n{input_content}\n```")
                         )
                     messages.append(user(prompt))
+                    start_time = time.time()
                     response = call_grok(messages, model_used, api_key, temperature)
+                    end_time = time.time()
+                    thinking_time = end_time - start_time
                     messages.append(assistant(response))
 
                     # Postprocess response
@@ -167,9 +218,14 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                             + get_change_summary(input_for_analysis, cleaned_response)
                         )
 
-                    # Send summary and message
+                    # Send summary, message, and thinking time
                     send_response(
-                        conn, {"summary": summary, "message": extracted_message}
+                        conn,
+                        {
+                            "summary": summary,
+                            "message": extracted_message,
+                            "thinking_time": thinking_time,
+                        },
                     )
                     conn.close()
                 else:

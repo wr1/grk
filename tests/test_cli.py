@@ -29,7 +29,9 @@ def test_session_help(runner):
     result = runner.invoke(main, ["session", "--help"])
     assert result.exit_code == 0
     assert "up" in result.output
+    assert "new" in result.output
     assert "msg" in result.output
+    assert "list" in result.output
     assert "down" in result.output
 
 
@@ -156,6 +158,31 @@ def test_session_msg_postprocessing(runner, tmp_path, monkeypatch, mocker):
     assert result.exit_code == 0
     assert "Message from Grok: Here's the update:" in result.output
     assert "Summary: = No changes detected." in result.output
+
+
+def test_session_new_command(runner, tmp_path, monkeypatch, mocker):
+    """Test session new command to renew instruction stack."""
+    monkeypatch.chdir(tmp_path)
+    Path(".grk_session.pid").write_text("12345")
+    Path(".grk_session.port").write_text("12345")
+    Path("new.json").write_text('{"instructions": [], "files": []}')
+
+    mock_socket = mocker.Mock()
+    mock_socket.connect = mocker.Mock()
+    mock_socket.send = mocker.Mock()
+
+    resp = {"message": "Instruction stack renewed."}
+    resp_json = json.dumps(resp)
+    length = len(resp_json)
+    length_bytes = length.to_bytes(4, "big")
+    data_bytes = resp_json.encode()
+
+    mock_socket.recv.side_effect = [length_bytes, data_bytes]
+    mocker.patch("socket.socket", return_value=mock_socket)
+
+    result = runner.invoke(main, ["session", "new", "new.json"])
+    assert result.exit_code == 0
+    assert "Success: Instruction stack renewed." in result.output
 
 
 @pytest.mark.parametrize(

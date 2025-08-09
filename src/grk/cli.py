@@ -8,7 +8,7 @@ from .config_handler import list_configs
 import socket
 import json
 from pathlib import Path
-from .core.session import recv_full, daemon_process
+from .core.session import recv_full
 import time
 from concurrent.futures import ThreadPoolExecutor
 from rich.live import Live
@@ -16,7 +16,6 @@ from rich.spinner import Spinner
 from rich.console import Console
 import sys
 import subprocess
-import traceback
 from .utils import print_instruction_tree
 
 
@@ -82,7 +81,9 @@ def session_up(file: str, profile: str = "default"):
             pid = int(f.read().strip())
         try:
             os.kill(pid, 0)
-            raise click.ClickException(f"Session already running (PID {pid}). Run 'grk session down' to stop it.")
+            raise click.ClickException(
+                f"Session already running (PID {pid}). Run 'grk session down' to stop it."
+            )
         except OSError:
             click.echo("Cleaning up stale PID file")
             pid_file.unlink()
@@ -98,7 +99,7 @@ def session_up(file: str, profile: str = "default"):
     }
     args_file.write_text(json.dumps(args_dict))
     # note no leading spaces
-    code = f"""
+    code = """
 import json
 import traceback
 import sys
@@ -158,9 +159,7 @@ except Exception as e:
     type=click.Path(exists=True, dir_okay=False),
     help="Additional input file",
 )
-def session_msg(
-    message: str, output: str = "__temp.json", input: str = None
-):
+def session_msg(message: str, output: str = "__temp.json", input: str = None):
     """Send a message to the background session."""
     console = Console()
     pid_file = Path(".grk_session.pid")
@@ -170,7 +169,9 @@ def session_msg(
     if not pid_file.exists():
         raise click.ClickException("No session running")
     if not port_file.exists():
-        raise click.ClickException("Port file missing; session may have failed to start")
+        raise click.ClickException(
+            "Port file missing; session may have failed to start"
+        )
     port = int(port_file.read_text().strip())
     if session_file.exists():
         session_data = json.loads(session_file.read_text())
@@ -203,9 +204,19 @@ def session_msg(
     adding = []
     input_content = Path(input).read_text() if input else None
     if input_content:
-        input_synopsis = input_content[:100].strip().replace("\n", " ") + ("..." if len(input_content) > 100 else "")
-        adding.append({"role": "user", "name": "Unnamed", "synopsis": f"Additional input: ```txt {input_synopsis}```"})
-    prompt_synopsis = message[:100].strip().replace("\n", " ") + ("..." if len(message) > 100 else "")
+        input_synopsis = input_content[:100].strip().replace("\n", " ") + (
+            "..." if len(input_content) > 100 else ""
+        )
+        adding.append(
+            {
+                "role": "user",
+                "name": "Unnamed",
+                "synopsis": f"Additional input: ```txt {input_synopsis}```",
+            }
+        )
+    prompt_synopsis = message[:100].strip().replace("\n", " ") + (
+        "..." if len(message) > 100 else ""
+    )
     adding.append({"role": "user", "name": "Unnamed", "synopsis": prompt_synopsis})
 
     # Print instruction backlog and current submission separately
@@ -235,7 +246,7 @@ def session_msg(
         }
         send_request(client, request)
 
-        response = recv_response(client)
+        response = recv_response(client, model_used=model_used)
 
         data = json.loads(response)
         if "error" in data:
@@ -246,6 +257,10 @@ def session_msg(
                 f"[bold green]Message from Grok:[/bold green] {data['message']}"
             )
         console.print(f"[bold green]Summary:[/bold green] {data['summary']}")
+        if "thinking_time" in data:
+            console.print(
+                f"[bold green]Thinking time:[/bold green] {data['thinking_time']:.2f} seconds"
+            )
         console.print(f"[bold green]Output written to:[/bold green] '{output}'")
     except ConnectionRefusedError:
         error_msg = "Session not responding."
@@ -278,13 +293,18 @@ def send_request(client: socket.socket, request: dict):
     client.send(length_bytes + request_json.encode())
 
 
-def recv_response(client: socket.socket) -> str:
+def recv_response(client: socket.socket, model_used: str = None) -> str:
     """Receive response with length prefix, with spinner."""
     console = Console()
+    wait_text = (
+        f"[bold yellow] Waiting for {model_used} response...[/bold yellow]"
+        if model_used
+        else "[bold yellow] Waiting for response...[/bold yellow]"
+    )
     with ThreadPoolExecutor(max_workers=1) as executor:
         # First, receive length
         future_length = executor.submit(recv_full, client, 4)
-        spinner = Spinner("dots", "[bold yellow] Waiting for response...[/bold yellow]")
+        spinner = Spinner("dots", wait_text)
         if console.is_terminal:
             with Live(spinner, console=console, refresh_per_second=15, transient=True):
                 while not future_length.done():
@@ -318,7 +338,9 @@ def session_down():
     if not pid_file.exists():
         raise click.ClickException("No session running")
     if not port_file.exists():
-        raise click.ClickException("Port file missing; session may have failed to start")
+        raise click.ClickException(
+            "Port file missing; session may have failed to start"
+        )
     port = int(port_file.read_text().strip())
     with pid_file.open() as f:
         pid = int(f.read().strip())
@@ -365,7 +387,9 @@ def session_list():
     if not pid_file.exists():
         raise click.ClickException("No session running")
     if not port_file.exists():
-        raise click.ClickException("Port file missing; session may have failed to start")
+        raise click.ClickException(
+            "Port file missing; session may have failed to start"
+        )
     port = int(port_file.read_text().strip())
     if session_file.exists():
         session_data = json.loads(session_file.read_text())
@@ -418,12 +442,60 @@ def session_list():
         client.close()
 
 
+@session.command("new")
+@click.argument("file", type=click.Path(exists=True, dir_okay=False), required=True)
+def session_new(file: str):
+    """Renew the instruction stack with a new file, preparing for the next message."""
+    console = Console()
+    pid_file = Path(".grk_session.pid")
+    port_file = Path(".grk_session.port")
+    session_file = Path(".grk_session.json")
+    log_file = Path(".grk_daemon.log")
+    if not pid_file.exists():
+        raise click.ClickException("No session running")
+    if not port_file.exists():
+        raise click.ClickException(
+            "Port file missing; session may have failed to start"
+        )
+    port = int(port_file.read_text().strip())
+
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        client.connect(("127.0.0.1", port))
+        request = {"cmd": "new", "file": file}
+        send_request(client, request)
+
+        response = recv_response(client)
+
+        data = json.loads(response)
+        if "error" in data:
+            console.print(f"[bold red]Error:[/bold red] {data['error']}")
+            return
+        console.print(
+            f"[bold green]Success:[/bold green] {data.get('message', 'Instruction stack renewed.')}"
+        )
+    except ConnectionRefusedError:
+        error_msg = "Session not responding."
+        if pid_file.exists():
+            with pid_file.open() as f:
+                pid = int(f.read().strip())
+            try:
+                os.kill(pid, 0)
+                error_msg += " Process is running but not listening."
+            except OSError:
+                error_msg += " Process is not running. Cleaning up."
+                pid_file.unlink()
+                port_file.unlink(missing_ok=True)
+                session_file.unlink(missing_ok=True)
+        if log_file.exists():
+            log_content = log_file.read_text()
+            error_msg += f"\nDaemon log:\n{log_content}"
+        else:
+            error_msg += " No daemon log found."
+        raise click.ClickException(error_msg)
+    finally:
+        client.close()
+
+
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-

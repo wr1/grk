@@ -4,14 +4,17 @@ import json
 import difflib
 from collections import defaultdict
 from rich.console import Console
-from pathlib import Path
 from typing import List, Set, Dict, Any
+import re
+
 
 def analyze_changes(input_data: dict, response: str, console: Console):
     """Analyze and print changes if response is cfold format."""
     try:
         response_to_parse = response.strip()
-        if response_to_parse.startswith("```json") and response_to_parse.endswith("```"):
+        if response_to_parse.startswith("```json") and response_to_parse.endswith(
+            "```"
+        ):
             response_to_parse = response_to_parse[7:-3].strip()
         output_data = json.loads(response_to_parse)
 
@@ -20,7 +23,9 @@ def analyze_changes(input_data: dict, response: str, console: Console):
         elif isinstance(output_data, dict) and "files" in output_data:
             output_files_list = output_data["files"]
         else:
-            console.print("[yellow]Response is not a recognized cfold format, skipping change analysis.[/yellow]")
+            console.print(
+                "[yellow]Response is not a recognized cfold format, skipping change analysis.[/yellow]"
+            )
             return
 
         output_files = {}
@@ -37,7 +42,11 @@ def analyze_changes(input_data: dict, response: str, console: Console):
             if not f.get("delete", False) and "content" in f:
                 input_files[f["path"]] = f["content"]
 
-        changed_files = [path for path in output_files if path in input_files and output_files[path] != input_files[path]]
+        changed_files = [
+            path
+            for path in output_files
+            if path in input_files and output_files[path] != input_files[path]
+        ]
         new_files = [path for path in output_files if path not in input_files]
 
         console.print("[bold green]Suggested changes:[/bold green]")
@@ -62,13 +71,18 @@ def analyze_changes(input_data: dict, response: str, console: Console):
         else:
             console.print("No deleted files.")
     except json.JSONDecodeError:
-        console.print("[yellow]Response is not valid JSON, skipping change analysis.[/yellow]")
+        console.print(
+            "[yellow]Response is not valid JSON, skipping change analysis.[/yellow]"
+        )
+
 
 def get_change_summary(input_data: dict, response: str) -> str:
     """Get a detailed string summary of changes from response in cfold format, including file tree and diffs."""
     try:
         response_to_parse = response.strip()
-        if response_to_parse.startswith("```json") and response_to_parse.endswith("```"):
+        if response_to_parse.startswith("```json") and response_to_parse.endswith(
+            "```"
+        ):
             response_to_parse = response_to_parse[7:-3].strip()
         output_data = json.loads(response_to_parse)
         if isinstance(output_data, list):
@@ -77,10 +91,22 @@ def get_change_summary(input_data: dict, response: str) -> str:
             output_files_list = output_data["files"]
         else:
             return "= No file changes detected."
-        output_files = {f["path"]: f["content"] for f in output_files_list if not f.get("delete", False) and "content" in f}
+        output_files = {
+            f["path"]: f["content"]
+            for f in output_files_list
+            if not f.get("delete", False) and "content" in f
+        }
         deleted_files = [f["path"] for f in output_files_list if f.get("delete", False)]
-        input_files = {f["path"]: f["content"] for f in input_data.get("files", []) if not f.get("delete", False) and "content" in f}
-        changed_files = [path for path in output_files if path in input_files and output_files[path] != input_files[path]]
+        input_files = {
+            f["path"]: f["content"]
+            for f in input_data.get("files", [])
+            if not f.get("delete", False) and "content" in f
+        }
+        changed_files = [
+            path
+            for path in output_files
+            if path in input_files and output_files[path] != input_files[path]
+        ]
         new_files = [path for path in output_files if path not in input_files]
         all_affected = changed_files + new_files + deleted_files
         if not all_affected:
@@ -89,7 +115,7 @@ def get_change_summary(input_data: dict, response: str) -> str:
         # Build file tree
         tree = defaultdict(list)
         for path in all_affected:
-            parts = path.split('/')
+            parts = path.split("/")
             current = tree
             for part in parts[:-1]:
                 if part not in current:
@@ -104,10 +130,20 @@ def get_change_summary(input_data: dict, response: str) -> str:
                 is_last = i == len(items) - 1
                 if isinstance(value, defaultdict):
                     lines.append(f"{prefix}{'└── ' if is_last else '├── '}{key}/")
-                    lines.extend(build_tree_str(value, prefix + ('    ' if is_last else '│   ')))
+                    lines.extend(
+                        build_tree_str(value, prefix + ("    " if is_last else "│   "))
+                    )
                 else:
-                    status = " (modified)" if value in changed_files else " (new)" if value in new_files else " (deleted)"
-                    lines.append(f"{prefix}{'└── ' if is_last else '├── '}{key}{status}")
+                    status = (
+                        " (modified)"
+                        if value in changed_files
+                        else " (new)"
+                        if value in new_files
+                        else " (deleted)"
+                    )
+                    lines.append(
+                        f"{prefix}{'└── ' if is_last else '├── '}{key}{status}"
+                    )
             return lines
 
         tree_str = "\n".join(build_tree_str(tree))
@@ -117,7 +153,9 @@ def get_change_summary(input_data: dict, response: str) -> str:
         for path in changed_files:
             old_lines = input_files[path].splitlines()
             new_lines = output_files[path].splitlines()
-            diff = difflib.unified_diff(old_lines, new_lines, fromfile=path + " (old)", tofile=path + " (new)")
+            diff = difflib.unified_diff(
+                old_lines, new_lines, fromfile=path + " (old)", tofile=path + " (new)"
+            )
             diff_str = "\n".join(diff)
             diff_strs.append(f"Diff for {path}:\n{diff_str}\n")
 
@@ -135,7 +173,10 @@ def get_change_summary(input_data: dict, response: str) -> str:
     except json.JSONDecodeError:
         return "Response not in JSON format; no changes applied."
 
-def filter_protected_files(files_list: List[dict], protected_paths: Set[str]) -> List[dict]:
+
+def filter_protected_files(
+    files_list: List[dict], protected_paths: Set[str]
+) -> List[dict]:
     """Filter out changes to protected files from the list."""
     filtered = []
     for f in files_list:
@@ -144,14 +185,46 @@ def filter_protected_files(files_list: List[dict], protected_paths: Set[str]) ->
         filtered.append(f)
     return filtered
 
+
 def build_instructions_from_messages(messages: List) -> List[Dict[str, Any]]:
     """Build list of instruction dicts from messages for summary, skipping empty content."""
     instructions = []
     for msg in messages:
         role = msg.role
-        name = getattr(msg, 'name', "Unnamed")
+        name = getattr(msg, "name", "Unnamed")
         content = msg.content
-        content_str = content if isinstance(content, str) else ' '.join(content) if isinstance(content, (list, tuple)) else str(content)
+        # Robust extraction of text content
+        if isinstance(content, str):
+            content_str = content
+        elif isinstance(content, dict):
+            content_str = content.get("text", content.get("content", ""))
+        elif isinstance(content, list):
+            texts = []
+            for item in content:
+                if isinstance(item, str):
+                    texts.append(item)
+                elif isinstance(item, dict):
+                    texts.append(item.get("text", item.get("content", "")))
+                elif hasattr(item, "text"):
+                    texts.append(item.text)
+                elif hasattr(item, "content"):
+                    texts.append(item.content)
+                else:
+                    texts.append(str(item))
+            content_str = " ".join(texts)
+        else:
+            if hasattr(content, "text"):
+                content_str = content.text
+            elif hasattr(content, "content"):
+                content_str = content.content
+            else:
+                content_str = str(content)
+
+        # Fallback for custom repr like [text: "..." ]
+        match = re.match(r'^\[text: "(.*)" \]$', content_str)
+        if match:
+            content_str = match.group(1)
+
         if not content_str.strip():
             continue  # Skip empty instructions
         synopsis = content_str[:100].strip() + ("..." if len(content_str) > 100 else "")
@@ -159,30 +232,33 @@ def build_instructions_from_messages(messages: List) -> List[Dict[str, Any]]:
         instructions.append({"role": role, "name": name, "synopsis": synopsis})
     return instructions
 
-def print_instruction_tree(console: Console, instructions: List[Dict[str, Any]], adding: List[Dict[str, Any]] = None, title: str = "Instruction Summary:"):
-    """Print instruction summary in a tree-like format."""
+
+def print_instruction_tree(
+    console: Console,
+    instructions: List[Dict[str, Any]],
+    adding: List[Dict[str, Any]] = None,
+    title: str = "Instruction Summary:",
+):
+    """Print instruction summary in a tree-like format, skipping empty synopses."""
     if adding is None:
         adding = []
     all_instr = instructions + adding
-    if not all_instr:
+    filtered_instr = [instr for instr in all_instr if instr.get("synopsis", "").strip()]
+    if not filtered_instr:
         console.print("[yellow]No instructions.[/yellow]")
         return
     console.print(f"[bold green]{title}[/bold green]")
     lines = []
-    for idx, instr in enumerate(all_instr):
-        is_last = idx == len(all_instr) - 1
+    for idx, instr in enumerate(filtered_instr):
+        is_last = idx == len(filtered_instr) - 1
         prefix = "└── " if is_last else "├── "
-        role = instr.get('role', 'unknown')
-        name = instr.get('name', 'Unnamed')
-        synopsis = instr.get('synopsis', '')
+        role = instr.get("role", "unknown")
+        # Map integer-like roles to spelled-out versions
+        role_map = {"1": "system", "2": "user", "3": "assistant"}
+        role_str = str(role)
+        role = role_map.get(role_str, role)
+        name = instr.get("name", "Unnamed")
+        synopsis = instr.get("synopsis", "")
         name_str = f" ({name})" if name != "Unnamed" else ""
-        lines.append(f"{prefix}{role}{name_str}: {synopsis}")
+        lines.append(f"{prefix}[cyan]{role}[/cyan]{name_str}: {synopsis}")
     console.print("\n".join(lines))
-
-
-
-
-
-
-
-
