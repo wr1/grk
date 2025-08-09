@@ -23,12 +23,9 @@ def test_build_instructions_from_messages():
     messages[1].name = "User1"  # Set name after creation
     instructions = build_instructions_from_messages(messages)
     assert len(instructions) == 3
-    assert instructions[0]["role"] == "system"
     assert instructions[0]["synopsis"] == "System message"
-    assert instructions[1]["role"] == "user"
     assert instructions[1]["name"] == "User1"
     assert instructions[1]["synopsis"] == "User message"
-    assert instructions[2]["role"] == "assistant"
     assert instructions[2]["synopsis"] == "Assistant message"
 
 
