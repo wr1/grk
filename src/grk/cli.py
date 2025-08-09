@@ -246,7 +246,7 @@ def session_msg(message: str, output: str = "__temp.json", input: str = None):
         }
         send_request(client, request)
 
-        response = recv_response(client)
+        response = recv_response(client, model_used=model_used)
 
         data = json.loads(response)
         if "error" in data:
@@ -293,13 +293,18 @@ def send_request(client: socket.socket, request: dict):
     client.send(length_bytes + request_json.encode())
 
 
-def recv_response(client: socket.socket) -> str:
+def recv_response(client: socket.socket, model_used: str = None) -> str:
     """Receive response with length prefix, with spinner."""
     console = Console()
+    wait_text = (
+        f"[bold yellow] Waiting for {model_used} response...[/bold yellow]"
+        if model_used
+        else "[bold yellow] Waiting for response...[/bold yellow]"
+    )
     with ThreadPoolExecutor(max_workers=1) as executor:
         # First, receive length
         future_length = executor.submit(recv_full, client, 4)
-        spinner = Spinner("dots", "[bold yellow] Waiting for response...[/bold yellow]")
+        spinner = Spinner("dots", wait_text)
         if console.is_terminal:
             with Live(spinner, console=console, refresh_per_second=15, transient=True):
                 while not future_length.done():
