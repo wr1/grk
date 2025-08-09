@@ -31,8 +31,3 @@ def list_configs():
             click.echo("No profiles defined in .grkrc.")
     except Exception as e:
         click.echo(f"Warning: Failed to load .grkrc: {str(e)}")
-
-
-
-
-
