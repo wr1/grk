@@ -3,16 +3,24 @@
 from rich.console import Console
 from grk.utils import print_instruction_tree, build_instructions_from_messages
 from xai_sdk.chat import system, user, assistant
+import re
+
+
+def strip_ansi(text: str) -> str:
+    """Strip ANSI escape codes from text."""
+    ansi_escape = re.compile(r"\x1b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+    return ansi_escape.sub("", text)
 
 
 def test_build_instructions_from_messages():
     """Test building instructions from messages, skipping empty."""
     messages = [
         system("System message"),
-        user("User message", name="User1"),
+        user("User message"),
         assistant("Assistant message"),
         user(""),  # Empty, should be skipped
     ]
+    messages[1].name = "User1"  # Set name after creation
     instructions = build_instructions_from_messages(messages)
     assert len(instructions) == 3
     assert instructions[0]["role"] == "system"
@@ -26,7 +34,7 @@ def test_build_instructions_from_messages():
 
 def test_print_instruction_tree(capsys):
     """Test printing instruction tree with colors and filtering."""
-    console = Console(file=None, force_terminal=True)
+    console = Console(force_terminal=True)
     instructions = [
         {"role": "system", "name": "Sys1", "synopsis": "System msg"},
         {"role": "user", "name": "User1", "synopsis": "User msg"},
@@ -35,15 +43,18 @@ def test_print_instruction_tree(capsys):
     ]
     print_instruction_tree(console, instructions)
     captured = capsys.readouterr()
-    assert "[cyan]system[/cyan] (Sys1): System msg" in captured.out
-    assert "[cyan]user[/cyan] (User1): User msg" in captured.out
-    assert "[cyan]assistant[/cyan]: Assistant msg" in captured.out
-    assert captured.out.count("\n") == 3  # Title + 3 lines
+    stripped = strip_ansi(captured.out)
+    assert "Instruction Summary:" in stripped
+    assert "system (Sys1): System msg" in stripped
+    assert "user (User1): User msg" in stripped
+    assert "assistant: Assistant msg" in stripped
+    assert stripped.count("\n") == 4  # Title + 3 lines + final newline
 
 
 def test_print_instruction_tree_no_instructions(capsys):
     """Test printing when no instructions after filtering."""
-    console = Console(file=None, force_terminal=True)
+    console = Console(force_terminal=True)
     print_instruction_tree(console, [])
     captured = capsys.readouterr()
-    assert "[yellow]No instructions.[/yellow]" in captured.out
+    stripped = strip_ansi(captured.out)
+    assert "No instructions." in stripped
