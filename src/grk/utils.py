@@ -192,13 +192,21 @@ def build_instructions_from_messages(messages: List) -> List[Dict[str, Any]]:
         role = msg.role
         name = getattr(msg, "name", "Unnamed")
         content = msg.content
-        content_str = (
-            content
-            if isinstance(content, str)
-            else " ".join(content)
-            if isinstance(content, (list, tuple))
-            else str(content)
-        )
+        # Extract text content assuming content is a list of dicts
+        if isinstance(content, list):
+            content_str = " ".join(
+                [
+                    part.get("text", "")
+                    for part in content
+                    if isinstance(part, dict) and "text" in part
+                ]
+            )
+        elif isinstance(content, dict) and "text" in content:
+            content_str = content["text"]
+        elif isinstance(content, str):
+            content_str = content
+        else:
+            content_str = str(content)
         if not content_str.strip():
             continue  # Skip empty instructions
         synopsis = content_str[:100].strip() + ("..." if len(content_str) > 100 else "")
