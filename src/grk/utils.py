@@ -234,5 +234,5 @@ def print_instruction_tree(
         name = instr.get("name", "Unnamed")
         synopsis = instr.get("synopsis", "")
         name_str = f" ({name})" if name != "Unnamed" else ""
-        lines.append(f"{prefix}{role}{name_str}: {synopsis}")
+        lines.append(f"{prefix}[cyan]{role}[/cyan]{name_str}: {synopsis}")
     console.print("\n".join(lines))
