@@ -89,7 +89,7 @@ def run_grok(
                     msg = assistant(content)
                 else:
                     raise ValueError(f"Unknown message type: {role}")
-                if instr.get("name"):
+                if role == "user" and instr.get("name"):
                     msg.name = instr["name"]
                 messages.append(msg)
             files_json = json.dumps(input_data["files"], indent=2)
