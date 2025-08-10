@@ -49,6 +49,41 @@ brief:
 
 ## Usage
 
+### Quick start 
+
+Using [shorthand](resources/shorthand.fish) for fish shell. 
+```shell
+# write project brief
+echo "write a 3d finite element solver using hex8 elements, use it to model a cube with 10x10x10 elements where x,y,z span range [0,1], clamp z==0 and apply unit distributed surface stress in positive z direction at z==1, output a vtu file where stresses and displacements are added as point data to the mesh, use numpy operations for speed and a logger to print progress to stdout, use user [{name="test",email="test@example.com"}]" > README.md
+
+# fold the project
+cf 
+
+# start session
+gu codefold.json
+
+# ask to implement
+gm "please implement according to README" -o __temp.json
+
+# unfold and install
+cu __temp.json ; uv pip install -e . 
+
+# close session
+gd
+
+# run code
+hex-fem
+INFO:hex_fem.fem:Generating mesh
+INFO:hex_fem.fem:Assembling stiffness
+INFO:hex_fem.fem:Assembling forces
+INFO:hex_fem.fem:Solving system
+INFO:hex_fem.fem:Computing stresses
+INFO:hex_fem.fem:Writing output
+```
+
+<!-- ![running](docs/assets/output.gif) -->
+![output](docs/assets/screenshot1.png)
+
 ### Single-Shot (One-Off) Commands
 ```bash
 grk init

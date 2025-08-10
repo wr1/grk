@@ -29,9 +29,7 @@ def run_grok(
 ):
     """Execute the Grok LLM run logic with given inputs and config."""
     model_used = config.model or "grok-4"
-    role_from_config = (
-        config.role or "you are an expert python programmer, writing clean code"
-    )
+    role_from_config = config.role or "you are an expert engineer and developer"
     output_file = config.output or "output.json"
     prompt_prepend = config.prompt_prepend or ""
     temperature = config.temperature or 0

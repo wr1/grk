@@ -6,12 +6,53 @@ from .models import FullConfig, ProfileConfig, Brief  # Import Pydantic models
 import click
 from typing import Optional
 
+DEFAULT_PROFILES = {
+    "default": {
+        "model": "grok-4",
+        "role": "you are an expert engineer and developer",
+        "output": "output.json",
+        "prompt_prepend": "",
+        "temperature": 0.25,
+    },
+    "py": {
+        "model": "grok-4",
+        "role": "you are an expert python programmer, writing clean code",
+        "output": "output.json",
+        "prompt_prepend": "",
+        "temperature": 0,
+    },
+    "doc": {
+        "model": "grok-4",
+        "role": "you are an expert in writing documentation",
+        "output": "output.json",
+        "prompt_prepend": "",
+        "temperature": 0.7,
+    },
+    "law": {
+        "model": "grok-4",
+        "role": "you are an expert lawyer, providing legal advice",
+        "output": "output.json",
+        "prompt_prepend": "write concise legal argumentation, prefer latex",
+        "temperature": 0.35,
+    },
+    "psy": {
+        "model": "grok-4",
+        "role": "you are an expert professor in psychology",
+        "output": "output.json",
+        "prompt_prepend": "",
+        "temperature": 0.3,
+    },
+}
+
+DEFAULT_BRIEF = {"file": "design_brief.typ", "role": "assistant"}
+
 
 def load_config(profile: str = "default") -> ProfileConfig:
-    """Load specified profile from .grkrc YAML config file and validate with Pydantic."""
+    """Load specified profile from .grkrc YAML config file and validate with Pydantic, falling back to defaults if not present."""
     config_file = Path(".grkrc")
     if not config_file.exists():
-        return ProfileConfig()  # Return empty ProfileConfig
+        profile_data = DEFAULT_PROFILES.get(profile, {})
+        return ProfileConfig(**profile_data)
     try:
         yaml = YAML()
         with config_file.open("r") as f:
@@ -20,17 +61,21 @@ def load_config(profile: str = "default") -> ProfileConfig:
         profile_data = full_config.profiles.get(profile)
         if profile_data:
             return profile_data  # Return the existing ProfileConfig object
-        return ProfileConfig()  # Return empty if profile not found
+        # Fallback to default if profile not found
+        default_data = DEFAULT_PROFILES.get(profile, {})
+        return ProfileConfig(**default_data)
     except Exception as e:
         print(f"Warning: Failed to load .grkrc profile '{profile}': {str(e)}")
-        return ProfileConfig()
+        # Fallback on error
+        default_data = DEFAULT_PROFILES.get(profile, {})
+        return ProfileConfig(**default_data)
 
 
 def load_brief() -> Optional[Brief]:
-    """Load the top-level brief from .grkrc."""
+    """Load the top-level brief from .grkrc, falling back to default if file not present."""
     config_file = Path(".grkrc")
     if not config_file.exists():
-        return None
+        return Brief(**DEFAULT_BRIEF)
     try:
         yaml = YAML()
         with config_file.open("r") as f:
@@ -58,44 +103,8 @@ def create_default_config():
             click.echo(f"Warning: Failed to load existing .grkrc: {str(e)}")
 
     default_config = {
-        "profiles": {
-            "default": {
-                "model": "grok-4",
-                "role": "you are an expert engineer and developer",
-                "output": "output.json",
-                "prompt_prepend": "",
-                "temperature": 0.25,
-            },
-            "py": {
-                "model": "grok-4",
-                "role": "you are an expert python programmer, writing clean code",
-                "output": "output.json",
-                "prompt_prepend": "",
-                "temperature": 0,
-            },
-            "doc": {
-                "model": "grok-4",
-                "role": "you are an expert in writing documentation",
-                "output": "output.json",
-                "prompt_prepend": "",
-                "temperature": 0.7,
-            },
-            "law": {
-                "model": "grok-4",
-                "role": "you are an expert lawyer, providing legal advice",
-                "output": "output.json",
-                "prompt_prepend": "write concise legal argumentation, prefer latex",
-                "temperature": 0.35,
-            },
-            "psy": {
-                "model": "grok-4",
-                "role": "you are an expert professor in psychology",
-                "output": "output.json",
-                "prompt_prepend": "",
-                "temperature": 0.3,
-            },
-        },
-        "brief": {"file": "design_brief.typ", "role": "assistant"},
+        "profiles": DEFAULT_PROFILES,
+        "brief": DEFAULT_BRIEF,
     }
 
     # Add old profiles with _old suffix only if they differ

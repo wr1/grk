@@ -16,7 +16,7 @@ from rich.spinner import Spinner
 from rich.console import Console
 import sys
 import subprocess
-from .utils import print_instruction_tree
+from .utils import print_instruction_tree, get_synopsis
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -181,7 +181,7 @@ def session_msg(message: str, output: str = "__temp.json", input: str = None):
         profile = "default"
         initial_file = "unknown"
     config = load_config(profile)
-    model_used = config.model or "grok-3-mini-fast"
+    model_used = config.model or "grok-4"
 
     # Get current instruction summary
     client_list = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -204,9 +204,7 @@ def session_msg(message: str, output: str = "__temp.json", input: str = None):
     adding = []
     input_content = Path(input).read_text() if input else None
     if input_content:
-        input_synopsis = input_content[:100].strip().replace("\n", " ") + (
-            "..." if len(input_content) > 100 else ""
-        )
+        input_synopsis = get_synopsis(input_content)
         adding.append(
             {
                 "role": "user",
@@ -214,9 +212,7 @@ def session_msg(message: str, output: str = "__temp.json", input: str = None):
                 "synopsis": f"Additional input: ```txt {input_synopsis}```",
             }
         )
-    prompt_synopsis = message[:100].strip().replace("\n", " ") + (
-        "..." if len(message) > 100 else ""
-    )
+    prompt_synopsis = get_synopsis(message)
     adding.append({"role": "user", "name": "Unnamed", "synopsis": prompt_synopsis})
 
     # Print instruction backlog and current submission separately
