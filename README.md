@@ -73,15 +73,15 @@ gd
 
 # run code
 hex-fem
-INFO:hex_fem.fem:Generating mesh
-INFO:hex_fem.fem:Assembling stiffness
-INFO:hex_fem.fem:Assembling forces
-INFO:hex_fem.fem:Solving system
-INFO:hex_fem.fem:Computing stresses
-INFO:hex_fem.fem:Writing output
+# INFO:hex_fem.fem:Generating mesh
+# INFO:hex_fem.fem:Assembling stiffness
+# INFO:hex_fem.fem:Assembling forces
+# INFO:hex_fem.fem:Solving system
+# INFO:hex_fem.fem:Computing stresses
+# INFO:hex_fem.fem:Writing output
 ```
 
-<!-- ![running](docs/assets/output.gif) -->
+![running](docs/assets/output.gif)
 ![output](docs/assets/screenshot1.png)
 
 ### Single-Shot (One-Off) Commands
@@ -101,7 +101,7 @@ grk session down
 
 In session mode, responses are postprocessed: any explanatory messages are printed to the console, and the output file is cleaned to ensure valid JSON in {'files': [...]} format (if possible).
 
-### Use with cfold
+<!-- ### Use with cfold
 Chaining with [cfold](https://github.com/wr1/cfold) allows making whole codebase changes, example below using [fish shorthand](resources/shorthand.fish).
 ```bash
 cf # fold the codebase, creates codefold.json
@@ -110,7 +110,7 @@ gm "review the docs and sync with current cli" # message the session
 cu __temp.json  # unfold the response 
 ...             # more messages
 gd # close the session
-```
+``` -->
 
 All settings are governed by the specified profile in .grkrc. If no .grkrc exists, it uses the default profile.
 
