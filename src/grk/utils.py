@@ -8,6 +8,15 @@ from typing import List, Set, Dict, Any
 import re
 
 
+def get_synopsis(content: str) -> str:
+    """Extract a synopsis from content, preferring the first non-empty line truncated to 100 chars."""
+    lines = [line.strip() for line in content.splitlines() if line.strip()]
+    if not lines:
+        return ""
+    top_line = lines[0]
+    return top_line[:100] + ("..." if len(top_line) > 100 else "")
+
+
 def analyze_changes(input_data: dict, response: str, console: Console):
     """Analyze and print changes if response is cfold format."""
     try:
@@ -227,8 +236,7 @@ def build_instructions_from_messages(messages: List) -> List[Dict[str, Any]]:
 
         if not content_str.strip():
             continue  # Skip empty instructions
-        synopsis = content_str[:100].strip() + ("..." if len(content_str) > 100 else "")
-        synopsis = synopsis.replace("\n", " ")
+        synopsis = get_synopsis(content_str)
         instructions.append({"role": role, "name": name, "synopsis": synopsis})
     return instructions
 
