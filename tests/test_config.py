@@ -1,3 +1,5 @@
+"""Tests for configuration loading and management."""
+
 from pathlib import Path
 from ruamel.yaml import YAML
 from grk.config import load_config, create_default_config, load_brief
@@ -5,11 +7,15 @@ from grk.models import ProfileConfig, Brief  # Import for type checking
 
 
 def test_load_config_no_file(tmp_path, monkeypatch):
-    """Test load_config when .grkrc file does not exist."""
+    """Test load_config when .grkrc file does not exist, falls back to default."""
     monkeypatch.chdir(tmp_path)
     result = load_config()
     assert isinstance(result, ProfileConfig)
-    assert result.model is None  # Empty ProfileConfig
+    assert result.model == "grok-4"
+    assert result.role == "you are an expert engineer and developer"
+    assert result.output == "output.json"
+    assert result.prompt_prepend == ""
+    assert result.temperature == 0.25
 
 
 def test_load_config_default_profile(tmp_path, monkeypatch):
@@ -71,7 +77,7 @@ def test_load_config_nonexistent_profile(tmp_path, monkeypatch):
 
 
 def test_load_config_invalid_yaml(tmp_path, monkeypatch, capsys):
-    """Test load_config with invalid YAML content."""
+    """Test load_config with invalid YAML content, falls back to default."""
     monkeypatch.chdir(tmp_path)
     Path(".grkrc").write_text("invalid: yaml: content: : :")
 
@@ -79,7 +85,11 @@ def test_load_config_invalid_yaml(tmp_path, monkeypatch, capsys):
     captured = capsys.readouterr()
     assert "Warning: Failed to load .grkrc profile 'default'" in captured.out
     assert isinstance(result, ProfileConfig)
-    assert result.model is None  # Returns empty ProfileConfig on failure
+    assert result.model == "grok-4"
+    assert result.role == "you are an expert engineer and developer"
+    assert result.output == "output.json"
+    assert result.prompt_prepend == ""
+    assert result.temperature == 0.25
 
 
 def test_create_default_config(tmp_path, monkeypatch, capsys):
@@ -106,10 +116,12 @@ def test_load_brief(tmp_path, monkeypatch):
 
 
 def test_load_brief_no_file(tmp_path, monkeypatch):
-    """Test load_brief when .grkrc does not exist."""
+    """Test load_brief when .grkrc does not exist, falls back to default."""
     monkeypatch.chdir(tmp_path)
     result = load_brief()
-    assert result is None
+    assert isinstance(result, Brief)
+    assert result.file == "design_brief.typ"
+    assert result.role == "assistant"
 
 
 def test_load_brief_invalid(tmp_path, monkeypatch, capsys):
