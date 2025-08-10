@@ -75,7 +75,7 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                 msg = assistant(content)
             else:
                 raise ValueError(f"Unknown message type: {role}")
-            if instr.get("name"):
+            if role == "user" and instr.get("name"):
                 msg.name = instr["name"]
             messages.append(msg)
 
@@ -153,7 +153,7 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                             msg = assistant(content)
                         else:
                             raise ValueError(f"Unknown message type: {role}")
-                        if instr.get("name"):
+                        if role == "user" and instr.get("name"):
                             msg.name = instr["name"]
                         messages.append(msg)
                     # Update cached codebase
