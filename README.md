@@ -14,7 +14,7 @@ Use GROK API in the terminal, control input, output and profiles.
 ```bash
 pip install .  
 ```-->
-Or `uv`
+Install with `uv`:
 ```bash
 uv pip install https://github.com/wr1/grk.git
 ```
