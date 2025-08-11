@@ -21,6 +21,11 @@ function gl
     grk session list $argv
 end
 
+function gn
+    # Shortcut for grk session new
+    grk session new $argv
+end
+
 function cf
     cfold fold $argv
 end
