@@ -147,7 +147,7 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                     cached_codebase = new_data.get("files", [])
                     save_cached_codebase(cached_codebase)
                     init_chat(new_instructions, cached_codebase)
-                    send_response(conn, {"message": "Instruction stack renewed."})
+                    send_response(conn, {"message": "Instruction stack and files renewed."})
                     conn.close()
                 elif cmd == "query":
                     prompt = request["prompt"]
@@ -337,3 +337,4 @@ def apply_cfold_changes(existing: List[dict], changes: List[dict]) -> List[dict]
             if not change.get("delete", False):
                 updated.append(change)  # Add new file
     return updated
+

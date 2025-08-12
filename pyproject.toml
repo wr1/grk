@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "grk"
-version = "0.2.1"
+version = "0.2.2"
 description = "CLI tool to call Grok LLM"
 authors = [{ name = "wr1", email = "8971152+wr1@users.noreply.github.com"}]
 requires-python = ">=3.10,<3.14"

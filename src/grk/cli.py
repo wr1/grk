@@ -468,7 +468,7 @@ def session_new(file: str):
             console.print(f"[bold red]Error:[/bold red] {data['error']}")
             return
         console.print(
-            f"[bold green]Success:[/bold green] {data.get('message', 'Instruction stack renewed.')}"
+            f"[bold green]Success:[/bold green] {data.get('message', 'Instruction stack and files renewed.')}"
         )
     except ConnectionRefusedError:
         error_msg = "Session not responding."
@@ -495,3 +495,4 @@ def session_new(file: str):
 
 if __name__ == "__main__":
     main()
+
