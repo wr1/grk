@@ -179,6 +179,6 @@ def run_grok(
                     analyze_changes(input_data, response, console)
         else:
             Path(output_file).write_text(response)
-            click.echo(f"Response saved to {output_file}")
+        console.print(f"[bold green]Output written to:[/bold green] '{output_file}'")
     except Exception as e:
         raise click.ClickException(f"Failed to write output: {str(e)}")
