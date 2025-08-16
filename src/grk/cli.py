@@ -495,4 +495,3 @@ def session_new(file: str):
 
 if __name__ == "__main__":
     main()
-
