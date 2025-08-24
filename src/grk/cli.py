@@ -22,7 +22,7 @@ from .utils import print_instruction_tree, get_synopsis
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 @click.rich_config(help_config=click.RichHelpConfiguration(use_markdown=True))
 def main():
-    """**grk**: CLI tool to interact with Grok LLM.\n\nUse single-shot commands for one-off tasks or session commands for interactive, stateful interactions."""
+    """**grk**: CLI tool to interact with Grok LLM.\n\nUse single-shot commands for one-off tasks or session commands for interactive, stateful interactions with Grok."""
     pass
 
 
@@ -252,7 +252,8 @@ def session_msg(message: str, output: str = "__temp.json", input: str = None):
             console.print(
                 f"[bold green]Message from Grok:[/bold green] {data['message']}"
             )
-        console.print(f"[bold green]Summary:[/bold green] {data['summary']}")
+        console.print("[bold green]Summary:[/bold green]")
+        console.print(data['summary'])
         if "thinking_time" in data:
             console.print(
                 f"[bold green]Thinking time:[/bold green] {data['thinking_time']:.2f} seconds"
@@ -495,3 +496,4 @@ def session_new(file: str):
 
 if __name__ == "__main__":
     main()
+
