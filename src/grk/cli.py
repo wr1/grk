@@ -513,7 +513,7 @@ app.commands.append(run_cmd)
 
 session_grp = group(
     name="session",
-    help="[bold green]Interactive Session Commands[/bold green]\n\nManage background sessions for stateful, multi-query interactions with Grok.",
+    help="Interactive Session Commands, manage background session for stateful interactions.",
 )
 app.subgroups.append(session_grp)
 
