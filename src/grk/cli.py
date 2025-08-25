@@ -476,19 +476,31 @@ app = cli(
     line_connect=True,
 )
 
+config_grp = group(
+    name="config",
+    help="[bold green]Configuration Commands[/bold green]\n\nManage configuration for Grok CLI.",
+)
+app.subgroups.append(config_grp)
+
 init_cmd = command(
     name="init",
     help="Initialize .grkrc with default profiles.",
     callback=init_func,
 )
-app.commands.append(init_cmd)
+config_grp.commands.append(init_cmd)
 
 list_cmd = command(
     name="list",
     help="List the configurations from .grkrc with YAML syntax highlighting.",
     callback=list_func,
 )
-app.commands.append(list_cmd)
+config_grp.commands.append(list_cmd)
+
+single_grp = group(
+    name="single",
+    help="[bold green]Single-Shot Commands[/bold green]\n\nRun one-off queries to Grok.",
+)
+app.subgroups.append(single_grp)
 
 run_cmd = command(
     name="run",
@@ -500,7 +512,6 @@ run_cmd = command(
     ],
     options=[
         option(
-            # name="profile",
             flags=["--profile", "-p"],
             help="The profile to use",
             arg_type=str,
@@ -509,11 +520,11 @@ run_cmd = command(
         ),
     ],
 )
-app.commands.append(run_cmd)
+single_grp.commands.append(run_cmd)
 
 session_grp = group(
     name="session",
-    help="Interactive Session Commands, manage background session for stateful interactions.",
+    help="[bold green]Interactive Session Commands[/bold green]\n\nManage background sessions for stateful, multi-query interactions with Grok.",
 )
 app.subgroups.append(session_grp)
 
