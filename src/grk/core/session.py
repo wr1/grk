@@ -6,13 +6,13 @@ from typing import List, Union, Tuple
 from pathlib import Path
 import socket
 import time
-import click
 from ..models import ProfileConfig
 from ..config import load_brief
 from ..utils import (
     get_change_summary,
     filter_protected_files,
     build_instructions_from_messages,
+    GrkException,
 )
 from xai_sdk.chat import assistant, system, user
 from xai_sdk import Client
@@ -76,11 +76,9 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                     messages.append(msg)
                     chat.append(msg)
                 except FileNotFoundError:
-                    click.echo(
-                        f"Warning: Brief file '{brief.file}' not found, skipping."
-                    )
+                    print(f"Warning: Brief file '{brief.file}' not found, skipping.")
                 except Exception as e:
-                    raise click.ClickException(f"Failed to load brief: {str(e)}")
+                    raise GrkException(f"Failed to load brief: {str(e)}")
 
             # Add instructions
             for instr in instructions:
@@ -308,7 +306,7 @@ def load_cached_codebase() -> List[dict]:
         try:
             return json.loads(cache_file.read_text())
         except json.JSONDecodeError:
-            click.echo("Warning: Cache file is corrupted. Starting with empty cache.")
+            print("Warning: Cache file is corrupted. Starting with empty cache.")
     return []  # Return empty list if no cache
 
 
@@ -318,7 +316,7 @@ def save_cached_codebase(codebase: List[dict]):
     try:
         cache_file.write_text(json.dumps(codebase, indent=2))
     except Exception as e:
-        click.echo(f"Warning: Failed to save cache: {str(e)}")
+        print(f"Warning: Failed to save cache: {str(e)}")
 
 
 def apply_cfold_changes(existing: List[dict], changes: List[dict]) -> List[dict]:
