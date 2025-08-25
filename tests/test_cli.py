@@ -80,12 +80,14 @@ def test_single_help(capture_output):
     assert "run" in result.output
 
 
-def test_init_command(capture_output, tmp_path, monkeypatch):
+def test_init_command(capture_output, tmp_path, monkeypatch, caplog):
     """Test init command to create default .grkrc file."""
     monkeypatch.chdir(tmp_path)
-    result = capture_output(["config", "init"])
+    with caplog.at_level("INFO"):
+        result = capture_output(["config", "init"])
     assert result.exit_code == 0
     assert Path(".grkrc").exists()
+    assert "Default .grkrc with profiles created successfully." in caplog.text
 
 
 def test_run_command_no_api_key(capture_output, tmp_path, monkeypatch):
@@ -114,7 +116,7 @@ def test_run_command_file_not_found(capture_output, tmp_path, monkeypatch):
     ["default", "py", "doc"],
 )
 def test_run_command_with_profile(
-    capture_output, tmp_path, monkeypatch, profile, mocker
+    capture_output, tmp_path, monkeypatch, profile, mocker, caplog
 ):
     """Test run command with different profiles."""
     monkeypatch.chdir(tmp_path)
@@ -136,7 +138,8 @@ def test_run_command_with_profile(
     cmd = ["single", "run", "input.txt", "Test prompt"]
     if profile != "default":
         cmd.extend(["--profile", profile])
-    result = capture_output(cmd, env={"XAI_API_KEY": "dummy_key"})
+    with caplog.at_level("INFO"):
+        result = capture_output(cmd, env={"XAI_API_KEY": "dummy_key"})
     assert result.exit_code == 0
     assert "Running grk with the following settings:" in result.output
 
@@ -147,19 +150,21 @@ def test_run_command_with_profile(
 
     # Check output files
     assert Path("output.json").exists()  # Adjusted to match default
+    assert "API call completed in" in caplog.text
 
 
-def test_session_up_command(capture_output, tmp_path, monkeypatch, mocker):
+def test_session_up_command(capture_output, tmp_path, monkeypatch, mocker, caplog):
     """Test session up command (stubbed for process start)."""
     monkeypatch.chdir(tmp_path)
     Path("initial.json").write_text('{"files": []}')
     mock_popen = mocker.patch("subprocess.Popen")
     mock_popen.return_value.pid = 12345  # Mock pid
-    result = capture_output(
-        ["session", "up", "initial.json"], env={"XAI_API_KEY": "dummy_key"}
-    )
+    with caplog.at_level("INFO"):
+        result = capture_output(
+            ["session", "up", "initial.json"], env={"XAI_API_KEY": "dummy_key"}
+        )
     assert result.exit_code == 0
-    assert "Session started with PID 12345" in result.output
+    assert "Session started with PID 12345" in caplog.text
     assert Path(".grk_session.pid").exists()
     assert Path(".grk_session.json").exists()
 
