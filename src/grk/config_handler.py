@@ -5,13 +5,16 @@ from ruamel.yaml import YAML
 from io import StringIO
 from rich.console import Console
 from rich.syntax import Syntax
+from .logging import setup_logging
+
+logger = setup_logging()
 
 
 def list_configs():
     """List configurations from .grkrc with YAML syntax highlighting."""
     config_file = Path(".grkrc")
     if not config_file.exists():
-        print("No .grkrc file found in the current directory.")
+        logger.info("No .grkrc file found in the current directory.")
         return
     try:
         yaml = YAML()
@@ -27,6 +30,6 @@ def list_configs():
             console = Console()
             console.print(syntax)
         else:
-            print("No profiles defined in .grkrc.")
+            logger.info("No profiles defined in .grkrc.")
     except Exception as e:
-        print(f"Warning: Failed to load .grkrc: {str(e)}")
+        logger.warning(f"Failed to load .grkrc: {str(e)}")
