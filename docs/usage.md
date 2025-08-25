@@ -5,9 +5,9 @@ The `grk` CLI provides commands to initialize configuration, list profiles, and 
 ## Single-Shot Commands
 
 ```bash
-grk init 
-grk list
-grk run <input_file> <prompt> [-p <profile>]  # Note: -p is the short form for --profile
+grk config init 
+grk config list
+grk single run <input_file> <prompt> [-p <profile>]  # Note: -p is the short form for --profile
 ```
 
 ## Interactive (Session-Based) Commands
@@ -29,7 +29,7 @@ In session mode, responses are automatically postprocessed: explanatory messages
 Run with a specific profile and input file (single-shot):
 
 ```bash
-grk run input.txt "Process this text file" -p py
+grk single run input.txt "Process this text file" -p py
 ```
 
 Start an interactive session, query it, list details, and shut down:
@@ -44,7 +44,7 @@ grk session down
 List available profiles with syntax highlighting:
 
 ```bash
-grk list
+grk config list
 ```
 
 Get help:
@@ -55,6 +55,7 @@ grk -h
 grk --help
 grk session --help  # For session-specific help
 ```
+
 
 
 
