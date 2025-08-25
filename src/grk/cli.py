@@ -16,7 +16,10 @@ from .runner import run_grok
 from .config_handler import list_configs
 from .core.session import recv_full
 from .utils import print_instruction_tree, get_synopsis, GrkException
+from .logging import setup_logging
 from treeparse import cli, group, command, argument, option
+
+logger = setup_logging()
 
 
 def init_func():
@@ -62,7 +65,7 @@ def session_up_func(file: str, profile: str = "default"):
                 f"Session already running (PID {pid}). Run 'grk session down' to stop it."
             )
         except OSError:
-            print("Cleaning up stale PID file")
+            logger.info("Cleaning up stale PID file")
             pid_file.unlink()
             port_file.unlink(missing_ok=True)
             session_file.unlink(missing_ok=True)
@@ -115,12 +118,12 @@ except Exception as e:
     )
     # Wait for daemon to start and write port file
     if os.environ.get("PYTEST_CURRENT_TEST") is not None:
-        print(f"Session started with PID {pid}. Logs in {log_file}")
+        logger.info(f"Session started with PID {pid}. Logs in {log_file}")
         return
     for _ in range(10):  # Poll for up to 10 seconds
         time.sleep(1)
         if port_file.exists():
-            print(f"Session started with PID {pid}. Logs in {log_file}")
+            logger.info(f"Session started with PID {pid}. Logs in {log_file}")
             return
     # If port file not found after waiting
     log_content = log_file.read_text() if log_file.exists() else "No logs available"
@@ -272,14 +275,14 @@ def session_down_func():
         try:
             data = json.loads(resp)
             if "error" in data:
-                print(f"Error shutting down: {data['error']}")
+                logger.error(f"Error shutting down: {data['error']}")
             else:
-                print(resp)
+                logger.info(resp)
         except json.JSONDecodeError:
-            print(resp)
+            logger.info(resp)
         client.close()
     except ConnectionRefusedError:
-        print("Session not responding, removing PID file")
+        logger.info("Session not responding, removing PID file")
     finally:
         if pid_file.exists():
             pid_file.unlink()
