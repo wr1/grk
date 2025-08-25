@@ -86,9 +86,9 @@ hex-fem
 
 ### Single-Shot (One-Off) Commands
 ```bash
-grk init
-grk list
-grk run <input_file> <prompt> [-p <profile>]  # Note: -p is the short form for --profile
+grk config init
+grk config list
+grk single run <input_file> <prompt> [-p <profile>]  # Note: -p is the short form for --profile
 ```
 
 ### Interactive (Session-Based) Commands
@@ -120,5 +120,6 @@ All settings are governed by the specified profile in .grkrc. If no .grkrc exist
 
 ## License 
 MIT
+
 
 
