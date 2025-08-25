@@ -9,13 +9,13 @@ from rich.console import Console
 from concurrent.futures import ThreadPoolExecutor
 from rich.live import Live
 from rich.spinner import Spinner
-import click
 from .config import ProfileConfig, load_brief
 from .utils import (
     analyze_changes,
     filter_protected_files,
     build_instructions_from_messages,
     print_instruction_tree,
+    GrkException,
 )
 from xai_sdk.chat import assistant, system, user
 
@@ -37,7 +37,7 @@ def run_grok(
     try:
         file_content = Path(file).read_text()
     except Exception as e:
-        raise click.ClickException(f"Failed to read file: {str(e)}")
+        raise GrkException(f"Failed to read file: {str(e)}")
 
     messages: List[Union[system, user, assistant]] = []
     full_prompt = prompt_prepend + message
@@ -59,9 +59,9 @@ def run_grok(
             else:
                 raise ValueError(f"Invalid role for brief: {brief_role}")
         except FileNotFoundError:
-            click.echo(f"Warning: Brief file '{brief.file}' not found, skipping.")
+            print(f"Warning: Brief file '{brief.file}' not found, skipping.")
         except Exception as e:
-            raise click.ClickException(f"Failed to load brief: {str(e)}")
+            raise GrkException(f"Failed to load brief: {str(e)}")
 
     try:
         input_data = json.loads(file_content)
@@ -145,7 +145,7 @@ def run_grok(
 
     end_time = time.time()
     wait_time = end_time - start_time
-    click.echo(f"API call completed in {wait_time:.2f} seconds.")
+    print(f"API call completed in {wait_time:.2f} seconds.")
 
     try:
         # Always write the response, format if valid JSON for cfold
@@ -181,4 +181,4 @@ def run_grok(
             Path(output_file).write_text(response)
         console.print(f"[bold green]Output written to:[/bold green] '{output_file}'")
     except Exception as e:
-        raise click.ClickException(f"Failed to write output: {str(e)}")
+        raise GrkException(f"Failed to write output: {str(e)}")
