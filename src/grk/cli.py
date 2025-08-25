@@ -469,7 +469,7 @@ def recv_response(client: socket.socket, model_used: str = None) -> str:
 
 app = cli(
     name="grk",
-    help="**grk**: CLI tool to interact with Grok LLM.\n\nUse single-shot commands for one-off tasks or session commands for interactive, stateful interactions with Grok.",
+    help="CLI tool to interact with Grok.",
     max_width=120,
     show_types=True,
     show_defaults=True,
@@ -513,7 +513,7 @@ app.commands.append(run_cmd)
 
 session_grp = group(
     name="session",
-    help="**Interactive Session Commands**\n\nManage background sessions for stateful, multi-query interactions with Grok.",
+    help="[bold green]Interactive Session Commands[/bold green]\n\nManage background sessions for stateful, multi-query interactions with Grok.",
 )
 app.subgroups.append(session_grp)
 
