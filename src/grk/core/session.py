@@ -14,9 +14,12 @@ from ..utils import (
     build_instructions_from_messages,
     GrkException,
 )
+from ..logging import setup_logging
 from xai_sdk.chat import assistant, system, user
 from xai_sdk import Client
 import traceback
+
+logger = setup_logging()
 
 
 def recv_full(conn: socket.socket, size: int) -> bytes:
@@ -76,7 +79,7 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                     messages.append(msg)
                     chat.append(msg)
                 except FileNotFoundError:
-                    print(f"Warning: Brief file '{brief.file}' not found, skipping.")
+                    logger.warning(f"Brief file '{brief.file}' not found, skipping.")
                 except Exception as e:
                     raise GrkException(f"Failed to load brief: {str(e)}")
 
@@ -221,7 +224,7 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                     send_response(conn, {"error": "Unknown command"})
                     conn.close()
             except Exception as e:
-                print(f"Error handling connection: {str(e)}")
+                logger.error(f"Error handling connection: {str(e)}")
                 traceback.print_exc()
                 try:
                     send_response(conn, {"error": str(e)})
@@ -229,7 +232,7 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                     pass
                 conn.close()
     except Exception as e:
-        print(f"Daemon error: {str(e)}")
+        logger.error(f"Daemon error: {str(e)}")
         traceback.print_exc()
     finally:
         server.close()
@@ -306,7 +309,7 @@ def load_cached_codebase() -> List[dict]:
         try:
             return json.loads(cache_file.read_text())
         except json.JSONDecodeError:
-            print("Warning: Cache file is corrupted. Starting with empty cache.")
+            logger.warning("Cache file is corrupted. Starting with empty cache.")
     return []  # Return empty list if no cache
 
 
@@ -316,7 +319,7 @@ def save_cached_codebase(codebase: List[dict]):
     try:
         cache_file.write_text(json.dumps(codebase, indent=2))
     except Exception as e:
-        print(f"Warning: Failed to save cache: {str(e)}")
+        logger.warning(f"Failed to save cache: {str(e)}")
 
 
 def apply_cfold_changes(existing: List[dict], changes: List[dict]) -> List[dict]:
