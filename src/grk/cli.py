@@ -591,7 +591,12 @@ session_grp.commands.append(new_cmd)
 
 
 def main():
-    app.run()
+    try:
+        app.run()
+    except GrkException as e:
+        console = Console()
+        console.print(f"[bold red]Error:[/bold red] {str(e)}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
