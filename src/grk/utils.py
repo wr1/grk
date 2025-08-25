@@ -8,6 +8,10 @@ from typing import List, Set, Dict, Any
 import re
 
 
+class GrkException(Exception):
+    pass
+
+
 def get_synopsis(content: str) -> str:
     """Extract a synopsis from content, preferring the first non-empty line truncated to 100 chars."""
     lines = [line.strip() for line in content.splitlines() if line.strip()]
