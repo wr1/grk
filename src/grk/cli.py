@@ -478,7 +478,7 @@ app = cli(
 
 config_grp = group(
     name="config",
-    help="[bold green]Configuration Commands[/bold green]\n\nManage configuration for Grok CLI.",
+    help="Manage configuration.",
 )
 app.subgroups.append(config_grp)
 
@@ -498,7 +498,7 @@ config_grp.commands.append(list_cmd)
 
 single_grp = group(
     name="single",
-    help="[bold green]Single-Shot Commands[/bold green]\n\nRun one-off queries to Grok.",
+    help="Single-Shot mode, run one-off queries to Grok.",
 )
 app.subgroups.append(single_grp)
 
@@ -524,7 +524,7 @@ single_grp.commands.append(run_cmd)
 
 session_grp = group(
     name="session",
-    help="[bold green]Interactive Session Commands[/bold green]\n\nManage background sessions for stateful, multi-query interactions with Grok.",
+    help="Interactive Session Mode, manage background sessions for stateful, multi-query interactions with Grok.",
 )
 app.subgroups.append(session_grp)
 
@@ -532,6 +532,7 @@ up_cmd = command(
     name="up",
     help="Start a background session process with initial codebase.",
     callback=session_up_func,
+    sort_key=-10,
     arguments=[
         argument(name="file", arg_type=str, sort_key=0),
     ],
@@ -551,6 +552,7 @@ msg_cmd = command(
     name="msg",
     help="Send a message to the background session.",
     callback=session_msg_func,
+    sort_key=-5,
     arguments=[
         argument(name="message", arg_type=str, sort_key=0),
     ],
