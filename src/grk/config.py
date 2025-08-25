@@ -4,6 +4,9 @@ from pathlib import Path
 from ruamel.yaml import YAML
 from .models import FullConfig, ProfileConfig, Brief  # Import Pydantic models
 from typing import Optional
+from .logging import setup_logging
+
+logger = setup_logging()
 
 DEFAULT_PROFILES = {
     "default": {
@@ -64,7 +67,7 @@ def load_config(profile: str = "default") -> ProfileConfig:
         default_data = DEFAULT_PROFILES.get(profile, {})
         return ProfileConfig(**default_data)
     except Exception as e:
-        print(f"Warning: Failed to load .grkrc profile '{profile}': {str(e)}")
+        logger.warning(f"Failed to load .grkrc profile '{profile}': {str(e)}")
         # Fallback on error
         default_data = DEFAULT_PROFILES.get(profile, {})
         return ProfileConfig(**default_data)
@@ -82,7 +85,7 @@ def load_brief() -> Optional[Brief]:
         full_config = FullConfig(**data)
         return full_config.brief
     except Exception as e:
-        print(f"Warning: Failed to load brief from .grkrc: {str(e)}")
+        logger.warning(f"Failed to load brief from .grkrc: {str(e)}")
         return None
 
 
@@ -99,7 +102,7 @@ def create_default_config():
             old_profiles = existing_config.get("profiles", {})
             old_brief = existing_config.get("brief")
         except Exception as e:
-            print(f"Warning: Failed to load existing .grkrc: {str(e)}")
+            logger.warning(f"Failed to load existing .grkrc: {str(e)}")
 
     default_config = {
         "profiles": DEFAULT_PROFILES,
@@ -111,24 +114,24 @@ def create_default_config():
         if profile_name in default_config["profiles"]:
             if profile_data != default_config["profiles"][profile_name]:
                 default_config["profiles"][f"{profile_name}_old"] = profile_data
-                print(
+                logger.info(
                     f"Profile '{profile_name}' differs from default, saved old as '{profile_name}_old'."
                 )
         else:
             default_config["profiles"][f"{profile_name}_old"] = profile_data
-            print(
+            logger.info(
                 f"Profile '{profile_name}' not in default config, saved as '{profile_name}_old'."
             )
 
     # Preserve old brief if different
     if old_brief and old_brief != default_config.get("brief"):
         default_config["brief_old"] = old_brief
-        print("Brief differs from default, saved old as 'brief_old'.")
+        logger.info("Brief differs from default, saved old as 'brief_old'.")
 
     try:
         yaml = YAML()
         with open(".grkrc", "w") as f:
             yaml.dump(default_config, f)
-        print("Default .grkrc with profiles created successfully.")
+        logger.info("Default .grkrc with profiles created successfully.")
     except Exception as e:
-        print(f"Failed to create .grkrc: {str(e)}")
+        logger.error(f"Failed to create .grkrc: {str(e)}")
