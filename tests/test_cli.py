@@ -1,7 +1,6 @@
 """Tests for Grok CLI commands."""
 
 import pytest
-from unittest.mock import patch
 import json
 from pathlib import Path
 from io import StringIO
@@ -13,12 +12,13 @@ import os
 @pytest.fixture
 def capture_output():
     """Fixture to capture stdout and stderr."""
+
     def _capture(args, env=None):
         old_argv = sys.argv
         old_stdout = sys.stdout
         old_stderr = sys.stderr
         old_env = os.environ.copy()
-        sys.argv = ['grk'] + args
+        sys.argv = ["grk"] + args
         sys.stdout = StringIO()
         sys.stderr = StringIO()
         if env:
@@ -39,7 +39,8 @@ def capture_output():
             sys.stderr = old_stderr
             os.environ.clear()
             os.environ.update(old_env)
-        return type('Result', (), {'exit_code': exit_code, 'output': output + error})
+        return type("Result", (), {"exit_code": exit_code, "output": output + error})
+
     return _capture
 
 
@@ -48,9 +49,8 @@ def test_main_help(capture_output):
     result = capture_output(["--help"])
     assert result.exit_code == 0
     assert "grk" in result.output
-    assert "init" in result.output
-    assert "list" in result.output
-    assert "run" in result.output
+    assert "config" in result.output
+    assert "single" in result.output
     assert "session" in result.output
 
 
@@ -65,10 +65,25 @@ def test_session_help(capture_output):
     assert "down" in result.output
 
 
+def test_config_help(capture_output):
+    """Test config subgroup help."""
+    result = capture_output(["config", "--help"])
+    assert result.exit_code == 0
+    assert "init" in result.output
+    assert "list" in result.output
+
+
+def test_single_help(capture_output):
+    """Test single subgroup help."""
+    result = capture_output(["single", "--help"])
+    assert result.exit_code == 0
+    assert "run" in result.output
+
+
 def test_init_command(capture_output, tmp_path, monkeypatch):
     """Test init command to create default .grkrc file."""
     monkeypatch.chdir(tmp_path)
-    result = capture_output(["init"])
+    result = capture_output(["config", "init"])
     assert result.exit_code == 0
     assert Path(".grkrc").exists()
 
@@ -78,7 +93,7 @@ def test_run_command_no_api_key(capture_output, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     Path("input.txt").write_text("Test content")
     monkeypatch.delenv("XAI_API_KEY", raising=False)
-    result = capture_output(["run", "input.txt", "Test prompt"])
+    result = capture_output(["single", "run", "input.txt", "Test prompt"])
     assert result.exit_code != 0
     assert "API key is required" in result.output
 
@@ -86,7 +101,10 @@ def test_run_command_no_api_key(capture_output, tmp_path, monkeypatch):
 def test_run_command_file_not_found(capture_output, tmp_path, monkeypatch):
     """Test run command with non-existent input file."""
     monkeypatch.chdir(tmp_path)
-    result = capture_output(["run", "nonexistent.txt", "Test prompt"], env={"XAI_API_KEY": "dummy_key"})
+    result = capture_output(
+        ["single", "run", "nonexistent.txt", "Test prompt"],
+        env={"XAI_API_KEY": "dummy_key"},
+    )
     assert result.exit_code != 0
     assert "Invalid file" in result.output
 
@@ -95,13 +113,15 @@ def test_run_command_file_not_found(capture_output, tmp_path, monkeypatch):
     "profile",
     ["default", "py", "doc"],
 )
-def test_run_command_with_profile(capture_output, tmp_path, monkeypatch, profile, mocker):
+def test_run_command_with_profile(
+    capture_output, tmp_path, monkeypatch, profile, mocker
+):
     """Test run command with different profiles."""
     monkeypatch.chdir(tmp_path)
     Path("input.txt").write_text("Test content")
 
     # Initialize config to have profiles
-    capture_output(["init"])
+    capture_output(["config", "init"])
 
     # Set up mock for API call
     mock_client = mocker.Mock()
@@ -113,7 +133,7 @@ def test_run_command_with_profile(capture_output, tmp_path, monkeypatch, profile
     mock_client.chat.create.return_value = mock_chat
     mocker.patch("grk.api.Client", return_value=mock_client)
 
-    cmd = ["run", "input.txt", "Test prompt"]
+    cmd = ["single", "run", "input.txt", "Test prompt"]
     if profile != "default":
         cmd.extend(["--profile", profile])
     result = capture_output(cmd, env={"XAI_API_KEY": "dummy_key"})
@@ -135,7 +155,9 @@ def test_session_up_command(capture_output, tmp_path, monkeypatch, mocker):
     Path("initial.json").write_text('{"files": []}')
     mock_popen = mocker.patch("subprocess.Popen")
     mock_popen.return_value.pid = 12345  # Mock pid
-    result = capture_output(["session", "up", "initial.json"], env={"XAI_API_KEY": "dummy_key"})
+    result = capture_output(
+        ["session", "up", "initial.json"], env={"XAI_API_KEY": "dummy_key"}
+    )
     assert result.exit_code == 0
     assert "Session started with PID 12345" in result.output
     assert Path(".grk_session.pid").exists()
@@ -237,4 +259,3 @@ def test_postprocess_response(raw_response, expected_cleaned, expected_message):
         "\n", ""
     )  # Ignore formatting
     assert message == expected_message
-
