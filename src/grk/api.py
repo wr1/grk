@@ -4,7 +4,7 @@ from typing import List, Union
 
 from xai_sdk import Client
 from xai_sdk.chat import assistant, system, user
-import rich_click as click
+from .utils import GrkException
 
 
 def call_grok(
@@ -27,4 +27,4 @@ def call_grok(
             raise ValueError("API response is not a string")
         return response.content
     except Exception as e:
-        raise click.ClickException(f"API request failed: {str(e)}")
+        raise GrkException(f"API request failed: {str(e)}")
