@@ -17,7 +17,10 @@ from .utils import (
     print_instruction_tree,
     GrkException,
 )
+from .logging import setup_logging
 from xai_sdk.chat import assistant, system, user
+
+logger = setup_logging()
 
 
 def run_grok(
@@ -59,7 +62,7 @@ def run_grok(
             else:
                 raise ValueError(f"Invalid role for brief: {brief_role}")
         except FileNotFoundError:
-            print(f"Warning: Brief file '{brief.file}' not found, skipping.")
+            logger.warning(f"Brief file '{brief.file}' not found, skipping.")
         except Exception as e:
             raise GrkException(f"Failed to load brief: {str(e)}")
 
@@ -145,7 +148,7 @@ def run_grok(
 
     end_time = time.time()
     wait_time = end_time - start_time
-    print(f"API call completed in {wait_time:.2f} seconds.")
+    logger.info(f"API call completed in {wait_time:.2f} seconds.")
 
     try:
         # Always write the response, format if valid JSON for cfold
