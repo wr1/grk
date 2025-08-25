@@ -15,8 +15,8 @@ dependencies = [
     "ruamel.yaml>=0.17",
     "rich>=13.7.1",  # Added for terminal visualization
     "pydantic>=2.6",  # Added for config validation and parsing
-    "rich-click>=1.7.0",  # Added for rich help output
     "xai-sdk",  # Added for XAI SDK
+    "treeparse @ git+https://github.com/wr1/treeparse.git@master",  # Added for CLI parsing
 ]
 
 [project.scripts]
@@ -34,3 +34,6 @@ dev = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/grk"]
 
+
+[tool.hatch.metadata]
+allow-direct-references = true

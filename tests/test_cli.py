@@ -1,32 +1,62 @@
 """Tests for Grok CLI commands."""
 
 import pytest
-from click.testing import CliRunner
-from pathlib import Path
-from grk.cli import main
+from unittest.mock import patch
 import json
+from pathlib import Path
+from io import StringIO
+from grk.cli import main
+import sys
+import os
 
 
 @pytest.fixture
-def runner():
-    """Fixture for invoking CLI commands."""
-    return CliRunner()
+def capture_output():
+    """Fixture to capture stdout and stderr."""
+    def _capture(args, env=None):
+        old_argv = sys.argv
+        old_stdout = sys.stdout
+        old_stderr = sys.stderr
+        old_env = os.environ.copy()
+        sys.argv = ['grk'] + args
+        sys.stdout = StringIO()
+        sys.stderr = StringIO()
+        if env:
+            os.environ.update(env)
+        exit_code = 0
+        try:
+            main()
+        except SystemExit as e:
+            exit_code = e.code or 0
+        except Exception as e:
+            exit_code = 1
+            sys.stderr.write(str(e) + "\n")
+        finally:
+            output = sys.stdout.getvalue()
+            error = sys.stderr.getvalue()
+            sys.argv = old_argv
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
+            os.environ.clear()
+            os.environ.update(old_env)
+        return type('Result', (), {'exit_code': exit_code, 'output': output + error})
+    return _capture
 
 
-def test_main_help(runner):
+def test_main_help(capture_output):
     """Test main CLI help command."""
-    result = runner.invoke(main, ["--help"])
+    result = capture_output(["--help"])
     assert result.exit_code == 0
-    assert "CLI tool to interact with Grok LLM." in result.output
+    assert "grk" in result.output
     assert "init" in result.output
     assert "list" in result.output
     assert "run" in result.output
     assert "session" in result.output
 
 
-def test_session_help(runner):
+def test_session_help(capture_output):
     """Test session subgroup help."""
-    result = runner.invoke(main, ["session", "--help"])
+    result = capture_output(["session", "--help"])
     assert result.exit_code == 0
     assert "up" in result.output
     assert "new" in result.output
@@ -35,46 +65,43 @@ def test_session_help(runner):
     assert "down" in result.output
 
 
-def test_init_command(runner, tmp_path, monkeypatch):
+def test_init_command(capture_output, tmp_path, monkeypatch):
     """Test init command to create default .grkrc file."""
     monkeypatch.chdir(tmp_path)
-    result = runner.invoke(main, ["init"])
+    result = capture_output(["init"])
     assert result.exit_code == 0
     assert Path(".grkrc").exists()
 
 
-def test_run_command_no_api_key(runner, tmp_path, monkeypatch):
+def test_run_command_no_api_key(capture_output, tmp_path, monkeypatch):
     """Test run command without API key set."""
     monkeypatch.chdir(tmp_path)
     Path("input.txt").write_text("Test content")
     monkeypatch.delenv("XAI_API_KEY", raising=False)
-    result = runner.invoke(main, ["run", "input.txt", "Test prompt"])
+    result = capture_output(["run", "input.txt", "Test prompt"])
     assert result.exit_code != 0
     assert "API key is required" in result.output
 
 
-def test_run_command_file_not_found(runner, tmp_path, monkeypatch):
+def test_run_command_file_not_found(capture_output, tmp_path, monkeypatch):
     """Test run command with non-existent input file."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("XAI_API_KEY", "dummy_key")
-    result = runner.invoke(main, ["run", "nonexistent.txt", "Test prompt"])
+    result = capture_output(["run", "nonexistent.txt", "Test prompt"], env={"XAI_API_KEY": "dummy_key"})
     assert result.exit_code != 0
-    assert "does not exist" in result.output
+    assert "Invalid file" in result.output
 
 
 @pytest.mark.parametrize(
     "profile",
     ["default", "py", "doc"],
 )
-def test_run_command_with_profile(runner, tmp_path, monkeypatch, profile, mocker):
+def test_run_command_with_profile(capture_output, tmp_path, monkeypatch, profile, mocker):
     """Test run command with different profiles."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("XAI_API_KEY", "dummy_key")
     Path("input.txt").write_text("Test content")
 
     # Initialize config to have profiles
-    init_result = runner.invoke(main, ["init"])
-    assert init_result.exit_code == 0
+    capture_output(["init"])
 
     # Set up mock for API call
     mock_client = mocker.Mock()
@@ -88,8 +115,8 @@ def test_run_command_with_profile(runner, tmp_path, monkeypatch, profile, mocker
 
     cmd = ["run", "input.txt", "Test prompt"]
     if profile != "default":
-        cmd.extend(["-p", profile])
-    result = runner.invoke(main, cmd)
+        cmd.extend(["--profile", profile])
+    result = capture_output(cmd, env={"XAI_API_KEY": "dummy_key"})
     assert result.exit_code == 0
     assert "Running grk with the following settings:" in result.output
 
@@ -102,24 +129,22 @@ def test_run_command_with_profile(runner, tmp_path, monkeypatch, profile, mocker
     assert Path("output.json").exists()  # Adjusted to match default
 
 
-def test_session_up_command(runner, tmp_path, monkeypatch, mocker):
+def test_session_up_command(capture_output, tmp_path, monkeypatch, mocker):
     """Test session up command (stubbed for process start)."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("XAI_API_KEY", "dummy_key")
     Path("initial.json").write_text('{"files": []}')
     mock_popen = mocker.patch("subprocess.Popen")
     mock_popen.return_value.pid = 12345  # Mock pid
-    result = runner.invoke(main, ["session", "up", "initial.json"])
+    result = capture_output(["session", "up", "initial.json"], env={"XAI_API_KEY": "dummy_key"})
     assert result.exit_code == 0
     assert "Session started with PID 12345" in result.output
     assert Path(".grk_session.pid").exists()
     assert Path(".grk_session.json").exists()
 
 
-def test_session_msg_postprocessing(runner, tmp_path, monkeypatch, mocker):
+def test_session_msg_postprocessing(capture_output, tmp_path, monkeypatch, mocker):
     """Test session msg command with postprocessing of malformed responses."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("XAI_API_KEY", "dummy_key")
     Path("initial.json").write_text('{"files": []}')
     Path(".grk_session.pid").write_text("12345")
     Path(".grk_session.json").write_text(
@@ -127,7 +152,7 @@ def test_session_msg_postprocessing(runner, tmp_path, monkeypatch, mocker):
     )
     Path(".grk_session.port").write_text("12345")
 
-    # Mock daemon_process and socket for testing postprocessing
+    # Mock socket for testing postprocessing
     mock_socket = mocker.Mock()
     mock_socket.connect = mocker.Mock()
     mock_socket.send = mocker.Mock()
@@ -154,13 +179,14 @@ def test_session_msg_postprocessing(runner, tmp_path, monkeypatch, mocker):
     ]
     mocker.patch("socket.socket", return_value=mock_socket)
 
-    result = runner.invoke(main, ["session", "msg", "Test prompt", "-o", "__temp.json"])
+    result = capture_output(["session", "msg", "Test prompt", "-o", "__temp.json"])
     assert result.exit_code == 0
     assert "Message from Grok: Here's the update:" in result.output
-    assert "Summary: = No changes detected." in result.output
+    assert "Summary:" in result.output
+    assert "= No changes detected." in result.output
 
 
-def test_session_new_command(runner, tmp_path, monkeypatch, mocker):
+def test_session_new_command(capture_output, tmp_path, monkeypatch, mocker):
     """Test session new command to renew instruction stack."""
     monkeypatch.chdir(tmp_path)
     Path(".grk_session.pid").write_text("12345")
@@ -180,7 +206,7 @@ def test_session_new_command(runner, tmp_path, monkeypatch, mocker):
     mock_socket.recv.side_effect = [length_bytes, data_bytes]
     mocker.patch("socket.socket", return_value=mock_socket)
 
-    result = runner.invoke(main, ["session", "new", "new.json"])
+    result = capture_output(["session", "new", "new.json"])
     assert result.exit_code == 0
     assert "Success: Instruction stack renewed." in result.output
 
@@ -211,3 +237,4 @@ def test_postprocess_response(raw_response, expected_cleaned, expected_message):
         "\n", ""
     )  # Ignore formatting
     assert message == expected_message
+
