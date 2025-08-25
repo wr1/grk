@@ -11,12 +11,11 @@ from rich.live import Live
 from rich.spinner import Spinner
 from rich.console import Console
 from pathlib import Path
-import click
 from .config import load_config, create_default_config
 from .runner import run_grok
 from .config_handler import list_configs
 from .core.session import recv_full
-from .utils import print_instruction_tree, get_synopsis
+from .utils import print_instruction_tree, get_synopsis, GrkException
 from treeparse import cli, group, command, argument, option
 
 
@@ -33,12 +32,10 @@ def list_func():
 def run_func(file: str, message: str, profile: str = "default"):
     """Run the Grok LLM processing using the specified profile (single-shot mode)."""
     if not Path(file).exists() or Path(file).is_dir():
-        raise click.ClickException(f"Invalid file: {file}")
+        raise GrkException(f"Invalid file: {file}")
     api_key = os.environ.get("XAI_API_KEY")
     if not api_key:
-        raise click.ClickException(
-            "API key is required via XAI_API_KEY environment variable."
-        )
+        raise GrkException("API key is required via XAI_API_KEY environment variable.")
     config = load_config(profile)
     run_grok(file, message, config, api_key, profile)
 
@@ -46,12 +43,10 @@ def run_func(file: str, message: str, profile: str = "default"):
 def session_up_func(file: str, profile: str = "default"):
     """Start a background session process with initial codebase."""
     if not Path(file).exists() or Path(file).is_dir():
-        raise click.ClickException(f"Invalid file: {file}")
+        raise GrkException(f"Invalid file: {file}")
     api_key = os.environ.get("XAI_API_KEY")
     if not api_key:
-        raise click.ClickException(
-            "API key required via XAI_API_KEY environment variable."
-        )
+        raise GrkException("API key required via XAI_API_KEY environment variable.")
     config = load_config(profile)
     pid_file = Path(".grk_session.pid")
     port_file = Path(".grk_session.port")
@@ -63,11 +58,11 @@ def session_up_func(file: str, profile: str = "default"):
             pid = int(f.read().strip())
         try:
             os.kill(pid, 0)
-            raise click.ClickException(
+            raise GrkException(
                 f"Session already running (PID {pid}). Run 'grk session down' to stop it."
             )
         except OSError:
-            click.echo("Cleaning up stale PID file")
+            print("Cleaning up stale PID file")
             pid_file.unlink()
             port_file.unlink(missing_ok=True)
             session_file.unlink(missing_ok=True)
@@ -120,33 +115,31 @@ except Exception as e:
     )
     # Wait for daemon to start and write port file
     if os.environ.get("PYTEST_CURRENT_TEST") is not None:
-        click.echo(f"Session started with PID {pid}. Logs in {log_file}")
+        print(f"Session started with PID {pid}. Logs in {log_file}")
         return
     for _ in range(10):  # Poll for up to 10 seconds
         time.sleep(1)
         if port_file.exists():
-            click.echo(f"Session started with PID {pid}. Logs in {log_file}")
+            print(f"Session started with PID {pid}. Logs in {log_file}")
             return
     # If port file not found after waiting
     log_content = log_file.read_text() if log_file.exists() else "No logs available"
-    raise click.ClickException(f"Daemon failed to start. Logs:\n{log_content}")
+    raise GrkException(f"Daemon failed to start. Logs:\n{log_content}")
 
 
 def session_msg_func(message: str, output: str = "__temp.json", input_file: str = None):
     """Send a message to the background session."""
     if input_file and (not Path(input_file).exists() or Path(input_file).is_dir()):
-        raise click.ClickException(f"Invalid input file: {input_file}")
+        raise GrkException(f"Invalid input file: {input_file}")
     console = Console()
     pid_file = Path(".grk_session.pid")
     port_file = Path(".grk_session.port")
     session_file = Path(".grk_session.json")
     log_file = Path(".grk_daemon.log")
     if not pid_file.exists():
-        raise click.ClickException("No session running")
+        raise GrkException("No session running")
     if not port_file.exists():
-        raise click.ClickException(
-            "Port file missing; session may have failed to start"
-        )
+        raise GrkException("Port file missing; session may have failed to start")
     port = int(port_file.read_text().strip())
     if session_file.exists():
         session_data = json.loads(session_file.read_text())
@@ -171,7 +164,7 @@ def session_msg_func(message: str, output: str = "__temp.json", input_file: str 
             return
         instruction_list = data_list.get("instructions", [])
     except Exception as e:
-        raise click.ClickException(f"Failed to get instruction list: {str(e)}")
+        raise GrkException(f"Failed to get instruction list: {str(e)}")
     finally:
         client_list.close()
 
@@ -252,7 +245,7 @@ def session_msg_func(message: str, output: str = "__temp.json", input_file: str 
             error_msg += f"\nDaemon log:\n{log_content}"
         else:
             error_msg += " No daemon log found."
-        raise click.ClickException(error_msg)
+        raise GrkException(error_msg)
     finally:
         client.close()
 
@@ -264,11 +257,9 @@ def session_down_func():
     session_file = Path(".grk_session.json")
     log_file = Path(".grk_daemon.log")
     if not pid_file.exists():
-        raise click.ClickException("No session running")
+        raise GrkException("No session running")
     if not port_file.exists():
-        raise click.ClickException(
-            "Port file missing; session may have failed to start"
-        )
+        raise GrkException("Port file missing; session may have failed to start")
     port = int(port_file.read_text().strip())
     with pid_file.open() as f:
         pid = int(f.read().strip())
@@ -281,14 +272,14 @@ def session_down_func():
         try:
             data = json.loads(resp)
             if "error" in data:
-                click.echo(f"Error shutting down: {data['error']}")
+                print(f"Error shutting down: {data['error']}")
             else:
-                click.echo(resp)
+                print(resp)
         except json.JSONDecodeError:
-            click.echo(resp)
+            print(resp)
         client.close()
     except ConnectionRefusedError:
-        click.echo("Session not responding, removing PID file")
+        print("Session not responding, removing PID file")
     finally:
         if pid_file.exists():
             pid_file.unlink()
@@ -312,11 +303,9 @@ def session_list_func():
     session_file = Path(".grk_session.json")
     log_file = Path(".grk_daemon.log")
     if not pid_file.exists():
-        raise click.ClickException("No session running")
+        raise GrkException("No session running")
     if not port_file.exists():
-        raise click.ClickException(
-            "Port file missing; session may have failed to start"
-        )
+        raise GrkException("Port file missing; session may have failed to start")
     port = int(port_file.read_text().strip())
     if session_file.exists():
         session_data = json.loads(session_file.read_text())
@@ -364,7 +353,7 @@ def session_list_func():
             error_msg += f"\nDaemon log:\n{log_content}"
         else:
             error_msg += " No daemon log found."
-        raise click.ClickException(error_msg)
+        raise GrkException(error_msg)
     finally:
         client.close()
 
@@ -372,18 +361,16 @@ def session_list_func():
 def session_new_func(file: str):
     """Renew the instruction stack with a new file, preparing for the next message."""
     if not Path(file).exists() or Path(file).is_dir():
-        raise click.ClickException(f"Invalid file: {file}")
+        raise GrkException(f"Invalid file: {file}")
     console = Console()
     pid_file = Path(".grk_session.pid")
     port_file = Path(".grk_session.port")
     session_file = Path(".grk_session.json")
     log_file = Path(".grk_daemon.log")
     if not pid_file.exists():
-        raise click.ClickException("No session running")
+        raise GrkException("No session running")
     if not port_file.exists():
-        raise click.ClickException(
-            "Port file missing; session may have failed to start"
-        )
+        raise GrkException("Port file missing; session may have failed to start")
     port = int(port_file.read_text().strip())
 
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -419,7 +406,7 @@ def session_new_func(file: str):
             error_msg += f"\nDaemon log:\n{log_content}"
         else:
             error_msg += " No daemon log found."
-        raise click.ClickException(error_msg)
+        raise GrkException(error_msg)
     finally:
         client.close()
 
