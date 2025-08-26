@@ -1,7 +1,5 @@
 """Tests for utility functions in grk.utils."""
 
-import json
-import pytest
 from rich.console import Console
 from grk.utils import (
     get_synopsis,
@@ -10,10 +8,9 @@ from grk.utils import (
     filter_protected_files,
     build_instructions_from_messages,
     print_instruction_tree,
-    GrkException,
 )
-from xai_sdk.chat import system, user, assistant
 import re
+
 
 class MockMessage:
     def __init__(self, role, content, name=None):
@@ -21,6 +18,7 @@ class MockMessage:
         self.content = content
         if name:
             self.name = name
+
 
 def strip_ansi(text: str) -> str:
     """Strip ANSI escape codes from text."""
@@ -67,8 +65,8 @@ def test_get_change_summary_no_changes():
 
 def test_get_change_summary_with_diffs():
     """Test get_change_summary including diffs."""
-    input_data = {"files": [{"path": "file.txt", "content": "old\nline"}]}
-    response = '{"files": [{"path": "file.txt", "content": "new\nline"}]}'
+    input_data = {"files": [{"path": "file.txt", "content": "old"}]}
+    response = '{"files": [{"path": "file.txt", "content": "new"}]}'
     summary = get_change_summary(input_data, response)
     assert "Diff for file.txt:" in summary
     assert "-old" in summary

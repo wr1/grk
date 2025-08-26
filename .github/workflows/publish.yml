@@ -1,0 +1,39 @@
+name: Publish to PyPI
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  id-token: write  # Required for trusted publishing via OIDC
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: Install dependencies with uv
+        run: uv sync --all-extras --dev  # Syncs dependencies from pyproject.toml
+      - name: Install build tool
+        run: uv pip install build
+      - name: Build package with uv
+        run: uv run python -m build  # Uses uv to run the build in the virtual environment
+      - name: Publish package
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+        
+# Instructions for publishing:
+# 1. Configure trusted publishing on PyPI:
+#    - Go to your PyPI project settings.
+#    - Add a trusted publisher for GitHub Actions, specifying the repository owner/repo and workflow name (publish.yml).
+# 2. To publish:
+#    - Create a GitHub release (triggers automatically) or manually dispatch the workflow from the Actions tab.
+#    - Ensure the version in pyproject.toml is updated before building.
+#    - The workflow will build and upload to PyPI using OIDC authentication.

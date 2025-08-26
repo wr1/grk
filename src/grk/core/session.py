@@ -36,6 +36,7 @@ def recv_full(conn: socket.socket, size: int) -> bytes:
 def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
     """Run the background daemon process for session management."""
     port_file = Path(".grk_session.port")
+    server = None
     try:
         # Load initial codebase from file
         initial_data = json.loads(Path(initial_file).read_text())
@@ -235,7 +236,8 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
         logger.error(f"Daemon error: {str(e)}")
         traceback.print_exc()
     finally:
-        server.close()
+        if server:
+            server.close()
         pid_file = Path(".grk_session.pid")
         if pid_file.exists():
             pid_file.unlink()

@@ -1,11 +1,16 @@
 """Tests for core.session module."""
 
-from grk.core.session import apply_cfold_changes, postprocess_response, load_cached_codebase, save_cached_codebase, recv_full, send_response
+from grk.core.session import apply_cfold_changes, postprocess_response, load_cached_codebase, save_cached_codebase, recv_full, send_response, daemon_process
 from pathlib import Path
 import socket
 import pytest
 from unittest.mock import patch, Mock
 import json
+import time
+from xai_sdk import Client
+from xai_sdk.chat import system, user, assistant
+from grk.models import ProfileConfig
+from grk.utils import GrkException
 
 
 def test_apply_cfold_changes():
@@ -92,3 +97,54 @@ def test_send_response():
     data = sent[4:]
     assert json.loads(data) == {"key": "value"}
     assert length == len(data)
+
+@patch("grk.core.session.Client")
+@patch("grk.core.session.socket")
+@patch("grk.core.session.Path")
+@patch("grk.core.session.load_brief")
+def test_daemon_process(mock_load_brief, mock_path_class, mock_socket_module, mock_client_class, tmp_path, monkeypatch):
+    """Test daemon_process with mocks."""
+    mock_load_brief.return_value = None  # Skip brief loading
+    monkeypatch.chdir(tmp_path)
+    initial_file = "initial.json"
+    # Setup mock for initial file read
+    mock_initial_path = Mock()
+    mock_initial_path.read_text.return_value = '{"files": [], "instructions": []}'
+    # Setup mock for port file
+    mock_port_path = Mock()
+    mock_port_path.write_text = Mock()
+    # Mock Path calls
+    def path_side_effect(path):
+        if path == initial_file:
+            return mock_initial_path
+        elif path == ".grk_session.port":
+            return mock_port_path
+        else:
+            return Mock()  # For other paths like cache
+    mock_path_class.side_effect = path_side_effect
+
+    config = ProfileConfig()
+    api_key = "test_key"
+
+    mock_server = Mock()
+    mock_socket_module.socket.return_value = mock_server
+    mock_server.getsockname.return_value = ("127.0.0.1", 12345)
+    mock_conn = Mock()
+    mock_server.accept.return_value = (mock_conn, ("addr"))
+
+    # Mock recv_full for length and data
+    def mock_recv_full(conn, size):
+        if size == 4:
+            return (18).to_bytes(4, "big")  # Length for '{"cmd": "down"}'
+        elif size == 18:
+            return b'{"cmd": "down"}'
+        return b""
+
+    with patch("grk.core.session.recv_full", side_effect=mock_recv_full):
+        daemon_process(initial_file, config, api_key)
+
+    assert mock_server.bind.called
+    assert mock_server.listen.called
+    assert mock_conn.close.called
+    assert mock_port_path.write_text.called
+    assert mock_server.close.called
