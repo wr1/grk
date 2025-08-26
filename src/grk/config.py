@@ -48,6 +48,8 @@ DEFAULT_PROFILES = {
 
 DEFAULT_BRIEF = {"file": "design_brief.typ", "role": "assistant"}
 
+DEFAULT_BRIEF_CONTENT = '#set page(margin: 1in)\n#set text(font: "New Computer Modern", size: 12pt)\n\n= Design Brief\n\nThis is a template for your project design brief. Edit as needed.\n'
+
 
 def load_config(profile: str = "default") -> ProfileConfig:
     """Load specified profile from .grkrc YAML config file and validate with Pydantic, falling back to defaults if not present."""
@@ -135,3 +137,9 @@ def create_default_config():
         logger.info("Default .grkrc with profiles created successfully.")
     except Exception as e:
         logger.error(f"Failed to create .grkrc: {str(e)}")
+
+    # Create design brief file if it doesn't exist
+    brief_file = Path(DEFAULT_BRIEF["file"])
+    if not brief_file.exists():
+        brief_file.write_text(DEFAULT_BRIEF_CONTENT)
+        logger.info(f"Design brief written to {brief_file}")
