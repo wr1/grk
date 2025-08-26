@@ -99,6 +99,8 @@ def test_create_default_config(tmp_path, monkeypatch, caplog):
         create_default_config()
     assert Path(".grkrc").exists()
     assert "Default .grkrc with profiles created successfully." in caplog.text
+    assert Path("design_brief.typ").exists()
+    assert "Design brief written to design_brief.typ" in caplog.text
 
 
 def test_load_brief(tmp_path, monkeypatch):
