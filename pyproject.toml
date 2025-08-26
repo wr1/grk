@@ -27,6 +27,7 @@ dev = [
     "mkdocs>=1.6.1,<2",
     "mkdocs-material>=9.6.14,<10",
     "pytest>=7.0,<8",
+    "pytest-cov",
     "pytest-mock>=3.10,<4"
 ]
 
