@@ -1,6 +1,6 @@
 import pytest
-import click
 from grk.api import call_grok
+from grk.utils import GrkException
 
 
 def test_call_grok_api_failure(mocker):
@@ -19,6 +19,6 @@ def test_call_grok_api_failure(mocker):
         {"role": "user", "content": "Test content"},
         {"role": "user", "content": "Test prompt"},
     ]
-    with pytest.raises(click.ClickException) as exc_info:
+    with pytest.raises(GrkException) as exc_info:
         call_grok(messages, "grok-3", "dummy_key")
     assert "API request failed" in str(exc_info.value)

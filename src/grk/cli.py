@@ -1,75 +1,55 @@
 """CLI commands for interacting with Grok LLM."""
 
-import rich_click as click
 import os
-from .config import load_config, create_default_config
-from .runner import run_grok
-from .config_handler import list_configs
-import socket
 import json
-from pathlib import Path
-from .core.session import recv_full
 import time
+import sys
+import subprocess
+import socket
 from concurrent.futures import ThreadPoolExecutor
 from rich.live import Live
 from rich.spinner import Spinner
 from rich.console import Console
-import sys
-import subprocess
-from .utils import print_instruction_tree, get_synopsis
+from pathlib import Path
+from .config import load_config, create_default_config
+from .runner import run_grok
+from .config_handler import list_configs
+from .core.session import recv_full
+from .utils import print_instruction_tree, get_synopsis, GrkException
+from .logging import setup_logging
+from treeparse import cli, group, command, argument, option
+
+logger = setup_logging()
 
 
-@click.group(context_settings={"help_option_names": ["-h", "--help"]})
-@click.rich_config(help_config=click.RichHelpConfiguration(use_markdown=True))
-def main():
-    """**grk**: CLI tool to interact with Grok LLM.\n\nUse single-shot commands for one-off tasks or session commands for interactive, stateful interactions."""
-    pass
-
-
-@main.command()
-def init():
+def init_func():
     """Initialize .grkrc with default profiles."""
-    create_default_config()  # Note: This is defined in config.py
+    create_default_config()
 
 
-@main.command()
-def list():
+def list_func():
     """List the configurations from .grkrc with YAML syntax highlighting."""
     list_configs()
 
 
-@main.command()
-@click.argument("file", type=click.Path(exists=True, dir_okay=False), required=True)
-@click.argument("message", required=True)
-@click.option("-p", "--profile", default="default", help="The profile to use")
-def run(file: str, message: str, profile: str = "default"):
+def run_func(file: str, message: str, profile: str = "default"):
     """Run the Grok LLM processing using the specified profile (single-shot mode)."""
+    if not Path(file).exists() or Path(file).is_dir():
+        raise GrkException(f"Invalid file: {file}")
     api_key = os.environ.get("XAI_API_KEY")
     if not api_key:
-        raise click.ClickException(
-            "API key is required via XAI_API_KEY environment variable."
-        )
+        raise GrkException("API key is required via XAI_API_KEY environment variable.")
     config = load_config(profile)
     run_grok(file, message, config, api_key, profile)
 
 
-@main.group(
-    help="**Interactive Session Commands**\n\nManage background sessions for stateful, multi-query interactions with Grok."
-)
-def session():
-    pass
-
-
-@session.command("up")
-@click.argument("file", type=click.Path(exists=True, dir_okay=False), required=True)
-@click.option("-p", "--profile", default="default", help="The profile to use")
-def session_up(file: str, profile: str = "default"):
+def session_up_func(file: str, profile: str = "default"):
     """Start a background session process with initial codebase."""
+    if not Path(file).exists() or Path(file).is_dir():
+        raise GrkException(f"Invalid file: {file}")
     api_key = os.environ.get("XAI_API_KEY")
     if not api_key:
-        raise click.ClickException(
-            "API key required via XAI_API_KEY environment variable."
-        )
+        raise GrkException("API key required via XAI_API_KEY environment variable.")
     config = load_config(profile)
     pid_file = Path(".grk_session.pid")
     port_file = Path(".grk_session.port")
@@ -81,11 +61,11 @@ def session_up(file: str, profile: str = "default"):
             pid = int(f.read().strip())
         try:
             os.kill(pid, 0)
-            raise click.ClickException(
+            raise GrkException(
                 f"Session already running (PID {pid}). Run 'grk session down' to stop it."
             )
         except OSError:
-            click.echo("Cleaning up stale PID file")
+            logger.info("Cleaning up stale PID file")
             pid_file.unlink()
             port_file.unlink(missing_ok=True)
             session_file.unlink(missing_ok=True)
@@ -138,40 +118,31 @@ except Exception as e:
     )
     # Wait for daemon to start and write port file
     if os.environ.get("PYTEST_CURRENT_TEST") is not None:
-        click.echo(f"Session started with PID {pid}. Logs in {log_file}")
+        logger.info(f"Session started with PID {pid}. Logs in {log_file}")
         return
     for _ in range(10):  # Poll for up to 10 seconds
         time.sleep(1)
         if port_file.exists():
-            click.echo(f"Session started with PID {pid}. Logs in {log_file}")
+            logger.info(f"Session started with PID {pid}. Logs in {log_file}")
             return
     # If port file not found after waiting
     log_content = log_file.read_text() if log_file.exists() else "No logs available"
-    raise click.ClickException(f"Daemon failed to start. Logs:\n{log_content}")
+    raise GrkException(f"Daemon failed to start. Logs:\n{log_content}")
 
 
-@session.command("msg")
-@click.argument("message", required=True)
-@click.option("-o", "--output", default="__temp.json", help="Output file")
-@click.option(
-    "-i",
-    "--input",
-    type=click.Path(exists=True, dir_okay=False),
-    help="Additional input file",
-)
-def session_msg(message: str, output: str = "__temp.json", input: str = None):
+def session_msg_func(message: str, output: str = "__temp.json", input_file: str = None):
     """Send a message to the background session."""
+    if input_file and (not Path(input_file).exists() or Path(input_file).is_dir()):
+        raise GrkException(f"Invalid input file: {input_file}")
     console = Console()
     pid_file = Path(".grk_session.pid")
     port_file = Path(".grk_session.port")
     session_file = Path(".grk_session.json")
     log_file = Path(".grk_daemon.log")
     if not pid_file.exists():
-        raise click.ClickException("No session running")
+        raise GrkException("No session running")
     if not port_file.exists():
-        raise click.ClickException(
-            "Port file missing; session may have failed to start"
-        )
+        raise GrkException("Port file missing; session may have failed to start")
     port = int(port_file.read_text().strip())
     if session_file.exists():
         session_data = json.loads(session_file.read_text())
@@ -196,13 +167,13 @@ def session_msg(message: str, output: str = "__temp.json", input: str = None):
             return
         instruction_list = data_list.get("instructions", [])
     except Exception as e:
-        raise click.ClickException(f"Failed to get instruction list: {str(e)}")
+        raise GrkException(f"Failed to get instruction list: {str(e)}")
     finally:
         client_list.close()
 
     # Prepare adding list
     adding = []
-    input_content = Path(input).read_text() if input else None
+    input_content = Path(input_file).read_text() if input_file else None
     if input_content:
         input_synopsis = get_synopsis(input_content)
         adding.append(
@@ -231,8 +202,8 @@ def session_msg(message: str, output: str = "__temp.json", input: str = None):
         console.print(f" Initial file: [cyan]{initial_file}[/cyan]")
         console.print(f" Prompt: [cyan]{message}[/cyan]")
         console.print(f" Output: [cyan]{output}[/cyan]")
-        if input:
-            console.print(f" Additional input file: [cyan]{input}[/cyan]")
+        if input_file:
+            console.print(f" Additional input file: [cyan]{input_file}[/cyan]")
 
         request = {
             "cmd": "query",
@@ -252,7 +223,8 @@ def session_msg(message: str, output: str = "__temp.json", input: str = None):
             console.print(
                 f"[bold green]Message from Grok:[/bold green] {data['message']}"
             )
-        console.print(f"[bold green]Summary:[/bold green] {data['summary']}")
+        console.print("[bold green]Summary:[/bold green]")
+        console.print(data["summary"])
         if "thinking_time" in data:
             console.print(
                 f"[bold green]Thinking time:[/bold green] {data['thinking_time']:.2f} seconds"
@@ -276,67 +248,21 @@ def session_msg(message: str, output: str = "__temp.json", input: str = None):
             error_msg += f"\nDaemon log:\n{log_content}"
         else:
             error_msg += " No daemon log found."
-        raise click.ClickException(error_msg)
+        raise GrkException(error_msg)
     finally:
         client.close()
 
 
-def send_request(client: socket.socket, request: dict):
-    """Send request with length prefix."""
-    request_json = json.dumps(request)
-    length = len(request_json)
-    length_bytes = length.to_bytes(4, "big")
-    client.send(length_bytes + request_json.encode())
-
-
-def recv_response(client: socket.socket, model_used: str = None) -> str:
-    """Receive response with length prefix, with spinner."""
-    console = Console()
-    wait_text = (
-        f"[bold yellow] Waiting for {model_used} response...[/bold yellow]"
-        if model_used
-        else "[bold yellow] Waiting for response...[/bold yellow]"
-    )
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        # First, receive length
-        future_length = executor.submit(recv_full, client, 4)
-        spinner = Spinner("dots", wait_text)
-        if console.is_terminal:
-            with Live(spinner, console=console, refresh_per_second=15, transient=True):
-                while not future_length.done():
-                    time.sleep(0.1)
-        else:
-            while not future_length.done():
-                time.sleep(0.1)
-        length_bytes = future_length.result()
-        length = int.from_bytes(length_bytes, "big")
-
-        # Then, receive data
-        future_data = executor.submit(recv_full, client, length)
-        if console.is_terminal:
-            with Live(spinner, console=console, refresh_per_second=15, transient=True):
-                while not future_data.done():
-                    time.sleep(0.1)
-        else:
-            while not future_data.done():
-                time.sleep(0.1)
-        data_bytes = future_data.result()
-        return data_bytes.decode("utf-8")
-
-
-@session.command("down")
-def session_down():
+def session_down_func():
     """Tear down the background session process."""
     pid_file = Path(".grk_session.pid")
     port_file = Path(".grk_session.port")
     session_file = Path(".grk_session.json")
     log_file = Path(".grk_daemon.log")
     if not pid_file.exists():
-        raise click.ClickException("No session running")
+        raise GrkException("No session running")
     if not port_file.exists():
-        raise click.ClickException(
-            "Port file missing; session may have failed to start"
-        )
+        raise GrkException("Port file missing; session may have failed to start")
     port = int(port_file.read_text().strip())
     with pid_file.open() as f:
         pid = int(f.read().strip())
@@ -349,14 +275,14 @@ def session_down():
         try:
             data = json.loads(resp)
             if "error" in data:
-                click.echo(f"Error shutting down: {data['error']}")
+                logger.error(f"Error shutting down: {data['error']}")
             else:
-                click.echo(resp)
+                logger.info(resp)
         except json.JSONDecodeError:
-            click.echo(resp)
+            logger.info(resp)
         client.close()
     except ConnectionRefusedError:
-        click.echo("Session not responding, removing PID file")
+        logger.info("Session not responding, removing PID file")
     finally:
         if pid_file.exists():
             pid_file.unlink()
@@ -372,8 +298,7 @@ def session_down():
             pass
 
 
-@session.command("list")
-def session_list():
+def session_list_func():
     """List file names and instruction synopses of the session."""
     console = Console()
     pid_file = Path(".grk_session.pid")
@@ -381,11 +306,9 @@ def session_list():
     session_file = Path(".grk_session.json")
     log_file = Path(".grk_daemon.log")
     if not pid_file.exists():
-        raise click.ClickException("No session running")
+        raise GrkException("No session running")
     if not port_file.exists():
-        raise click.ClickException(
-            "Port file missing; session may have failed to start"
-        )
+        raise GrkException("Port file missing; session may have failed to start")
     port = int(port_file.read_text().strip())
     if session_file.exists():
         session_data = json.loads(session_file.read_text())
@@ -433,26 +356,24 @@ def session_list():
             error_msg += f"\nDaemon log:\n{log_content}"
         else:
             error_msg += " No daemon log found."
-        raise click.ClickException(error_msg)
+        raise GrkException(error_msg)
     finally:
         client.close()
 
 
-@session.command("new")
-@click.argument("file", type=click.Path(exists=True, dir_okay=False), required=True)
-def session_new(file: str):
+def session_new_func(file: str):
     """Renew the instruction stack with a new file, preparing for the next message."""
+    if not Path(file).exists() or Path(file).is_dir():
+        raise GrkException(f"Invalid file: {file}")
     console = Console()
     pid_file = Path(".grk_session.pid")
     port_file = Path(".grk_session.port")
     session_file = Path(".grk_session.json")
     log_file = Path(".grk_daemon.log")
     if not pid_file.exists():
-        raise click.ClickException("No session running")
+        raise GrkException("No session running")
     if not port_file.exists():
-        raise click.ClickException(
-            "Port file missing; session may have failed to start"
-        )
+        raise GrkException("Port file missing; session may have failed to start")
     port = int(port_file.read_text().strip())
 
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -468,7 +389,7 @@ def session_new(file: str):
             console.print(f"[bold red]Error:[/bold red] {data['error']}")
             return
         console.print(
-            f"[bold green]Success:[/bold green] {data.get('message', 'Instruction stack renewed.')}"
+            f"[bold green]Success:[/bold green] {data.get('message', 'Instruction stack and files renewed.')}"
         )
     except ConnectionRefusedError:
         error_msg = "Session not responding."
@@ -488,9 +409,194 @@ def session_new(file: str):
             error_msg += f"\nDaemon log:\n{log_content}"
         else:
             error_msg += " No daemon log found."
-        raise click.ClickException(error_msg)
+        raise GrkException(error_msg)
     finally:
         client.close()
+
+
+def send_request(client: socket.socket, request: dict):
+    """Send request with length prefix."""
+    request_json = json.dumps(request)
+    length = len(request_json)
+    length_bytes = length.to_bytes(4, "big")
+    client.send(length_bytes + request_json.encode())
+
+
+def recv_response(client: socket.socket, model_used: str = None) -> str:
+    """Receive response with length prefix, with spinner."""
+    console = Console()
+    wait_text = (
+        f"[bold yellow] Waiting for {model_used} response...[/bold yellow]"
+        if model_used
+        else "[bold yellow] Waiting for response...[/bold yellow]"
+    )
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        # First, receive length
+        future_length = executor.submit(recv_full, client, 4)
+        spinner = Spinner("dots", wait_text)
+        if console.is_terminal:
+            with Live(spinner, console=console, refresh_per_second=15, transient=True):
+                while not future_length.done():
+                    time.sleep(0.1)
+        else:
+            while not future_length.done():
+                time.sleep(0.1)
+        length_bytes = future_length.result()
+        length = int.from_bytes(length_bytes, "big")
+
+        # Then, receive data
+        future_data = executor.submit(recv_full, client, length)
+        if console.is_terminal:
+            with Live(spinner, console=console, refresh_per_second=15, transient=True):
+                while not future_data.done():
+                    time.sleep(0.1)
+        else:
+            while not future_data.done():
+                time.sleep(0.1)
+        data_bytes = future_data.result()
+        return data_bytes.decode("utf-8")
+
+
+app = cli(
+    name="grk",
+    help="CLI tool to interact with Grok.",
+    max_width=120,
+    show_types=True,
+    show_defaults=True,
+    line_connect=True,
+)
+
+config_grp = group(
+    name="config",
+    help="Manage configuration.",
+)
+app.subgroups.append(config_grp)
+
+init_cmd = command(
+    name="init",
+    help="Initialize .grkrc with default profiles.",
+    callback=init_func,
+)
+config_grp.commands.append(init_cmd)
+
+list_cmd = command(
+    name="list",
+    help="List the configurations from .grkrc with YAML syntax highlighting.",
+    callback=list_func,
+)
+config_grp.commands.append(list_cmd)
+
+single_grp = group(
+    name="single",
+    help="Single-Shot mode, run one-off queries to Grok.",
+)
+app.subgroups.append(single_grp)
+
+run_cmd = command(
+    name="run",
+    help="Run the Grok LLM processing using the specified profile (single-shot mode).",
+    callback=run_func,
+    arguments=[
+        argument(name="file", arg_type=str, sort_key=0),
+        argument(name="message", arg_type=str, sort_key=1),
+    ],
+    options=[
+        option(
+            flags=["--profile", "-p"],
+            help="The profile to use",
+            arg_type=str,
+            default="default",
+            sort_key=0,
+        ),
+    ],
+)
+single_grp.commands.append(run_cmd)
+
+session_grp = group(
+    name="session",
+    help="Interactive Session Mode, manage background sessions for stateful, multi-query interactions with Grok.",
+)
+app.subgroups.append(session_grp)
+
+up_cmd = command(
+    name="up",
+    help="Start a background session process with initial codebase.",
+    callback=session_up_func,
+    sort_key=-10,
+    arguments=[
+        argument(name="file", arg_type=str, sort_key=0),
+    ],
+    options=[
+        option(
+            flags=["--profile", "-p"],
+            help="The profile to use",
+            arg_type=str,
+            default="default",
+            sort_key=0,
+        ),
+    ],
+)
+session_grp.commands.append(up_cmd)
+
+msg_cmd = command(
+    name="msg",
+    help="Send a message to the background session.",
+    callback=session_msg_func,
+    sort_key=-5,
+    arguments=[
+        argument(name="message", arg_type=str, sort_key=0),
+    ],
+    options=[
+        option(
+            flags=["--output", "-o"],
+            help="Output file",
+            arg_type=str,
+            default="__temp.json",
+            sort_key=0,
+        ),
+        option(
+            flags=["--input_file", "-i"],
+            help="Additional input file",
+            arg_type=str,
+            default=None,
+            sort_key=1,
+        ),
+    ],
+)
+session_grp.commands.append(msg_cmd)
+
+down_cmd = command(
+    name="down",
+    help="Tear down the background session process.",
+    callback=session_down_func,
+)
+session_grp.commands.append(down_cmd)
+
+list_session_cmd = command(
+    name="list",
+    help="List file names and instruction synopses of the session.",
+    callback=session_list_func,
+)
+session_grp.commands.append(list_session_cmd)
+
+new_cmd = command(
+    name="new",
+    help="Renew the instruction stack with a new file, preparing for the next message.",
+    callback=session_new_func,
+    arguments=[
+        argument(name="file", arg_type=str, sort_key=0),
+    ],
+)
+session_grp.commands.append(new_cmd)
+
+
+def main():
+    try:
+        app.run()
+    except GrkException as e:
+        console = Console()
+        console.print(f"[bold red]Error:[/bold red] {str(e)}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

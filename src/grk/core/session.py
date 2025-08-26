@@ -6,17 +6,20 @@ from typing import List, Union, Tuple
 from pathlib import Path
 import socket
 import time
-import click
-from ..api import call_grok
 from ..models import ProfileConfig
 from ..config import load_brief
 from ..utils import (
     get_change_summary,
     filter_protected_files,
     build_instructions_from_messages,
+    GrkException,
 )
+from ..logging import setup_logging
 from xai_sdk.chat import assistant, system, user
+from xai_sdk import Client
 import traceback
+
+logger = setup_logging()
 
 
 def recv_full(conn: socket.socket, size: int) -> bytes:
@@ -33,57 +36,79 @@ def recv_full(conn: socket.socket, size: int) -> bytes:
 def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
     """Run the background daemon process for session management."""
     port_file = Path(".grk_session.port")
+    server = None
     try:
         # Load initial codebase from file
         initial_data = json.loads(Path(initial_file).read_text())
         cached_codebase = initial_data.get("files", [])
         save_cached_codebase(cached_codebase)
 
-        messages: List[Union[system, user, assistant]] = []
+        client = Client(api_key=api_key)
+
         role_from_config = config.role or "you are an expert engineer and developer"
-        messages.append(system(role_from_config))
-
-        # Add brief if configured
-        brief = load_brief()
-        if brief:
-            try:
-                brief_content = Path(brief.file).read_text()
-                brief_role = brief.role.lower()
-                if brief_role == "system":
-                    messages.append(system(brief_content))
-                elif brief_role == "user":
-                    messages.append(user(brief_content))
-                elif brief_role == "assistant":
-                    messages.append(assistant(brief_content))
-                else:
-                    raise ValueError(f"Invalid role for brief: {brief_role}")
-            except FileNotFoundError:
-                click.echo(f"Warning: Brief file '{brief.file}' not found, skipping.")
-            except Exception as e:
-                raise click.ClickException(f"Failed to load brief: {str(e)}")
-
-        # Add initial instructions if present
-        initial_instructions = initial_data.get("instructions", [])
-        for instr in initial_instructions:
-            role = instr["type"]
-            content = instr["content"]
-            if role == "system":
-                msg = system(content)
-            elif role == "user":
-                msg = user(content)
-            elif role == "assistant":
-                msg = assistant(content)
-            else:
-                raise ValueError(f"Unknown message type: {role}")
-            if instr.get("name"):
-                msg.name = instr["name"]
-            messages.append(msg)
-
-        files_json = json.dumps(cached_codebase, indent=2)
-        messages.append(user(f"Current codebase files:\n```json\n{files_json}\n```"))
-
         model_used = config.model or "grok-4"
         temperature = config.temperature or 0
+        prompt_prepend = config.prompt_prepend or ""
+
+        messages: List[Union[system, user, assistant]] = []
+        chat = None
+
+        def init_chat(instructions, codebase):
+            nonlocal chat, messages
+            chat = client.chat.create(model=model_used, temperature=temperature)
+            messages.clear()
+
+            if role_from_config:
+                msg = system(role_from_config)
+                messages.append(msg)
+                chat.append(msg)
+
+            # Add brief if configured
+            brief = load_brief()
+            if brief:
+                try:
+                    brief_content = Path(brief.file).read_text()
+                    brief_role = brief.role.lower()
+                    if brief_role == "system":
+                        msg = system(brief_content)
+                    elif brief_role == "user":
+                        msg = user(brief_content)
+                    elif brief_role == "assistant":
+                        msg = assistant(brief_content)
+                    else:
+                        raise ValueError(f"Invalid role for brief: {brief_role}")
+                    messages.append(msg)
+                    chat.append(msg)
+                except FileNotFoundError:
+                    logger.warning(f"Brief file '{brief.file}' not found, skipping.")
+                except Exception as e:
+                    raise GrkException(f"Failed to load brief: {str(e)}")
+
+            # Add instructions
+            for instr in instructions:
+                role = instr["type"]
+                content = instr["content"]
+                if role == "system":
+                    msg = system(content)
+                elif role == "user":
+                    msg = user(content)
+                elif role == "assistant":
+                    msg = assistant(content)
+                else:
+                    raise ValueError(f"Unknown message type: {role}")
+                if role == "user" and instr.get("name"):
+                    msg.name = instr["name"]
+                messages.append(msg)
+                chat.append(msg)
+
+            files_json = json.dumps(codebase, indent=2)
+            msg = user(f"Current codebase files:\n```json\n{files_json}\n```")
+            messages.append(msg)
+            chat.append(msg)
+
+        # Initial setup
+        initial_instructions = initial_data.get("instructions", [])
+        init_chat(initial_instructions, cached_codebase)
 
         # Set up server with dynamic port
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -120,69 +145,37 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                 elif cmd == "new":
                     new_file = request["file"]
                     new_data = json.loads(Path(new_file).read_text())
-                    # Reset messages
-                    messages.clear()
-                    messages.append(system(role_from_config))
-                    # Add brief if configured
-                    if brief:
-                        try:
-                            brief_content = Path(brief.file).read_text()
-                            brief_role = brief.role.lower()
-                            if brief_role == "system":
-                                messages.append(system(brief_content))
-                            elif brief_role == "user":
-                                messages.append(user(brief_content))
-                            elif brief_role == "assistant":
-                                messages.append(assistant(brief_content))
-                        except Exception as e:
-                            send_response(
-                                conn, {"error": f"Failed to load brief: {str(e)}"}
-                            )
-                            conn.close()
-                            continue
-                    # Add new instructions
                     new_instructions = new_data.get("instructions", [])
-                    for instr in new_instructions:
-                        role = instr["type"]
-                        content = instr["content"]
-                        if role == "system":
-                            msg = system(content)
-                        elif role == "user":
-                            msg = user(content)
-                        elif role == "assistant":
-                            msg = assistant(content)
-                        else:
-                            raise ValueError(f"Unknown message type: {role}")
-                        if instr.get("name"):
-                            msg.name = instr["name"]
-                        messages.append(msg)
-                    # Update cached codebase
                     cached_codebase = new_data.get("files", [])
                     save_cached_codebase(cached_codebase)
-                    # Append codebase message
-                    files_json = json.dumps(cached_codebase, indent=2)
-                    messages.append(
-                        user(f"Current codebase files:\n```json\n{files_json}\n```")
+                    init_chat(new_instructions, cached_codebase)
+                    send_response(
+                        conn, {"message": "Instruction stack and files renewed."}
                     )
-                    send_response(conn, {"message": "Instruction stack renewed."})
                     conn.close()
                 elif cmd == "query":
                     prompt = request["prompt"]
                     output = request.get("output", "__temp.json")
                     input_content = request.get("input_content")
                     if input_content:
-                        messages.append(
-                            user(f"Additional input:\n```txt\n{input_content}\n```")
-                        )
-                    messages.append(user(prompt))
+                        msg = user(f"Additional input:\n```txt\n{input_content}\n```")
+                        messages.append(msg)
+                        chat.append(msg)
+                    full_prompt = prompt_prepend + prompt
+                    msg = user(full_prompt)
+                    messages.append(msg)
+                    chat.append(msg)
                     start_time = time.time()
-                    response = call_grok(messages, model_used, api_key, temperature)
+                    response = chat.sample()
                     end_time = time.time()
                     thinking_time = end_time - start_time
-                    messages.append(assistant(response))
+                    chat.append(response)
+                    messages.append(assistant(response.content))
 
                     # Postprocess response
-                    cleaned_response, extracted_message = postprocess_response(response)
+                    cleaned_response, extracted_message = postprocess_response(
+                        response.content
+                    )
 
                     # Prepare for analysis (use cleaned_response for summary and caching)
                     input_for_analysis = {"files": [dict(**f) for f in cached_codebase]}
@@ -211,7 +204,7 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                             save_cached_codebase(cached_codebase)
                     except json.JSONDecodeError:
                         Path(output).write_text(
-                            response
+                            response.content
                         )  # Fallback to raw if still invalid
                         summary = (
                             "No valid JSON detected; raw response saved. "
@@ -232,18 +225,19 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                     send_response(conn, {"error": "Unknown command"})
                     conn.close()
             except Exception as e:
-                print(f"Error handling connection: {str(e)}")
+                logger.error(f"Error handling connection: {str(e)}")
                 traceback.print_exc()
                 try:
                     send_response(conn, {"error": str(e)})
-                except:
+                except Exception:
                     pass
                 conn.close()
     except Exception as e:
-        print(f"Daemon error: {str(e)}")
+        logger.error(f"Daemon error: {str(e)}")
         traceback.print_exc()
     finally:
-        server.close()
+        if server:
+            server.close()
         pid_file = Path(".grk_session.pid")
         if pid_file.exists():
             pid_file.unlink()
@@ -317,7 +311,7 @@ def load_cached_codebase() -> List[dict]:
         try:
             return json.loads(cache_file.read_text())
         except json.JSONDecodeError:
-            click.echo("Warning: Cache file is corrupted. Starting with empty cache.")
+            logger.warning("Cache file is corrupted. Starting with empty cache.")
     return []  # Return empty list if no cache
 
 
@@ -327,7 +321,7 @@ def save_cached_codebase(codebase: List[dict]):
     try:
         cache_file.write_text(json.dumps(codebase, indent=2))
     except Exception as e:
-        click.echo(f"Warning: Failed to save cache: {str(e)}")
+        logger.warning(f"Failed to save cache: {str(e)}")
 
 
 def apply_cfold_changes(existing: List[dict], changes: List[dict]) -> List[dict]:

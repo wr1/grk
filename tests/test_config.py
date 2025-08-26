@@ -76,14 +76,14 @@ def test_load_config_nonexistent_profile(tmp_path, monkeypatch):
     assert result.model is None
 
 
-def test_load_config_invalid_yaml(tmp_path, monkeypatch, capsys):
+def test_load_config_invalid_yaml(tmp_path, monkeypatch, caplog):
     """Test load_config with invalid YAML content, falls back to default."""
     monkeypatch.chdir(tmp_path)
     Path(".grkrc").write_text("invalid: yaml: content: : :")
 
-    result = load_config()
-    captured = capsys.readouterr()
-    assert "Warning: Failed to load .grkrc profile 'default'" in captured.out
+    with caplog.at_level("WARNING"):
+        result = load_config()
+    assert "Failed to load .grkrc profile 'default'" in caplog.text
     assert isinstance(result, ProfileConfig)
     assert result.model == "grok-4"
     assert result.role == "you are an expert engineer and developer"
@@ -92,13 +92,15 @@ def test_load_config_invalid_yaml(tmp_path, monkeypatch, capsys):
     assert result.temperature == 0.25
 
 
-def test_create_default_config(tmp_path, monkeypatch, capsys):
+def test_create_default_config(tmp_path, monkeypatch, caplog):
     """Test create_default_config creates default .grkrc file."""
     monkeypatch.chdir(tmp_path)
-    create_default_config()
+    with caplog.at_level("INFO"):
+        create_default_config()
     assert Path(".grkrc").exists()
-    captured = capsys.readouterr()
-    assert "Default .grkrc with profiles created successfully" in captured.out
+    assert "Default .grkrc with profiles created successfully." in caplog.text
+    assert Path("design_brief.typ").exists()
+    assert "Design brief written to design_brief.typ" in caplog.text
 
 
 def test_load_brief(tmp_path, monkeypatch):
@@ -124,11 +126,11 @@ def test_load_brief_no_file(tmp_path, monkeypatch):
     assert result.role == "assistant"
 
 
-def test_load_brief_invalid(tmp_path, monkeypatch, capsys):
+def test_load_brief_invalid(tmp_path, monkeypatch, caplog):
     """Test load_brief with invalid brief data."""
     monkeypatch.chdir(tmp_path)
     Path(".grkrc").write_text("brief: invalid")
-    result = load_brief()
-    captured = capsys.readouterr()
-    assert "Warning: Failed to load brief from .grkrc" in captured.out
+    with caplog.at_level("WARNING"):
+        result = load_brief()
+    assert "Failed to load brief from .grkrc" in caplog.text
     assert result is None

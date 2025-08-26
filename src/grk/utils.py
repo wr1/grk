@@ -8,6 +8,10 @@ from typing import List, Set, Dict, Any
 import re
 
 
+class GrkException(Exception):
+    pass
+
+
 def get_synopsis(content: str) -> str:
     """Extract a synopsis from content, preferring the first non-empty line truncated to 100 chars."""
     lines = [line.strip() for line in content.splitlines() if line.strip()]
@@ -229,8 +233,8 @@ def build_instructions_from_messages(messages: List) -> List[Dict[str, Any]]:
             else:
                 content_str = str(content)
 
-        # Fallback for custom repr like [text: "..." ]
-        match = re.match(r'^\[text: "(.*)" \]$', content_str)
+        # Fallback for custom repr like [text: "..."]
+        match = re.match(r'^\[text: "(.*)"\]$', content_str)
         if match:
             content_str = match.group(1)
 
