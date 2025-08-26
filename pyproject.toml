@@ -15,7 +15,7 @@ dependencies = [
     "rich>=13.7.1",  # Added for terminal visualization
     "pydantic>=2.6",  # Added for config validation and parsing
     "xai-sdk",  # Added for XAI SDK
-    "treeparse @ git+https://github.com/wr1/treeparse.git@master",  # Added for CLI parsing
+    "treeparse",  # Added for CLI parsing
 ]
 
 [project.scripts]
