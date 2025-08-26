@@ -264,3 +264,27 @@ def test_postprocess_response(raw_response, expected_cleaned, expected_message):
         "\n", ""
     )  # Ignore formatting
     assert message == expected_message
+
+def test_session_down_command(capture_output, tmp_path, monkeypatch, mocker):
+    """Test session down command."""
+    monkeypatch.chdir(tmp_path)
+    Path(".grk_session.pid").write_text("12345")
+    Path(".grk_session.port").write_text("12345")
+
+    mock_socket = mocker.Mock()
+    mock_socket.connect = mocker.Mock()
+    mock_socket.send = mocker.Mock()
+
+    resp = "Shutting down"
+    length = len(resp)
+    length_bytes = length.to_bytes(4, "big")
+    data_bytes = resp.encode()
+
+    mock_socket.recv.side_effect = [length_bytes, data_bytes]
+    mocker.patch("socket.socket", return_value=mock_socket)
+    mocker.patch("os.kill")
+
+    result = capture_output(["session", "down"])
+    assert result.exit_code == 0
+    assert not Path(".grk_session.pid").exists()
+    assert not Path(".grk_session.port").exists()

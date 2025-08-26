@@ -1,5 +1,7 @@
 """Tests for utility functions in grk.utils."""
 
+import json
+import pytest
 from rich.console import Console
 from grk.utils import (
     get_synopsis,
@@ -8,10 +10,17 @@ from grk.utils import (
     filter_protected_files,
     build_instructions_from_messages,
     print_instruction_tree,
+    GrkException,
 )
 from xai_sdk.chat import system, user, assistant
 import re
 
+class MockMessage:
+    def __init__(self, role, content, name=None):
+        self.role = role
+        self.content = content
+        if name:
+            self.name = name
 
 def strip_ansi(text: str) -> str:
     """Strip ANSI escape codes from text."""
@@ -31,7 +40,7 @@ def test_analyze_changes_valid_json(capsys):
     """Test analyze_changes with valid JSON."""
     input_data = {"files": [{"path": "file1.txt", "content": "old"}]}
     response = '{"files": [{"path": "file1.txt", "content": "new"}, {"path": "file2.txt", "content": "added"}, {"path": "file3.txt", "delete": true}]}'
-    console = Console(file=open("/dev/null", "w"))  # Suppress output for test
+    console = Console()
     analyze_changes(input_data, response, console)
     captured = capsys.readouterr()
     assert "Changed files:" in captured.out
@@ -43,7 +52,7 @@ def test_analyze_changes_invalid_json(capsys):
     """Test analyze_changes with invalid JSON."""
     input_data = {}
     response = "invalid"
-    console = Console(file=open("/dev/null", "w"))
+    console = Console()
     analyze_changes(input_data, response, console)
     captured = capsys.readouterr()
     assert "Response is not valid JSON" in captured.out
@@ -78,12 +87,11 @@ def test_filter_protected_files():
 def test_build_instructions_from_messages():
     """Test building instructions from messages, skipping empty."""
     messages = [
-        system("System message"),
-        user("User message"),
-        assistant("Assistant message"),
-        user(""),  # Empty, should be skipped
+        MockMessage(3, "System message"),
+        MockMessage(1, "User message", name="User1"),
+        MockMessage(2, "Assistant message"),
+        MockMessage(1, ""),  # Empty, should be skipped
     ]
-    messages[1].name = "User1"  # Set name after creation
     instructions = build_instructions_from_messages(messages)
     assert len(instructions) == 3
     assert instructions[0]["synopsis"] == "System message"
@@ -118,3 +126,28 @@ def test_print_instruction_tree_no_instructions(capsys):
     captured = capsys.readouterr()
     stripped = strip_ansi(captured.out)
     assert "No instructions." in stripped
+
+
+def test_get_change_summary_invalid_json():
+    """Test get_change_summary with invalid JSON."""
+    input_data = {}
+    response = "invalid"
+    assert "Response not in JSON format" in get_change_summary(input_data, response)
+
+
+def test_analyze_changes_not_recognized(capsys):
+    """Test analyze_changes with unrecognized format."""
+    input_data = {}
+    response = '{"other": []}'
+    console = Console()
+    analyze_changes(input_data, response, console)
+    captured = capsys.readouterr()
+    assert "not a recognized cfold format" in captured.out
+
+
+def test_build_instructions_complex_content():
+    """Test building instructions with complex content."""
+    messages = [MockMessage(1, [{"text": "Part1"}, {"content": "Part2"}])]
+    instructions = build_instructions_from_messages(messages)
+    assert len(instructions) == 1
+    assert "Part1 Part2" in instructions[0]["synopsis"]

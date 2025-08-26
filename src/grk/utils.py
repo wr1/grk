@@ -233,8 +233,8 @@ def build_instructions_from_messages(messages: List) -> List[Dict[str, Any]]:
             else:
                 content_str = str(content)
 
-        # Fallback for custom repr like [text: "..." ]
-        match = re.match(r'^\[text: "(.*)" \]$', content_str)
+        # Fallback for custom repr like [text: "..."]
+        match = re.match(r'^\[text: "(.*)"\]$', content_str)
         if match:
             content_str = match.group(1)
 

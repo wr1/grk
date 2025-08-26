@@ -1,15 +1,11 @@
 """Tests for core.session module."""
 
-from grk.core.session import (
-    apply_cfold_changes,
-    postprocess_response,
-    load_cached_codebase,
-    save_cached_codebase,
-    recv_full,
-)
+from grk.core.session import apply_cfold_changes, postprocess_response, load_cached_codebase, save_cached_codebase, recv_full, send_response
 from pathlib import Path
+import socket
 import pytest
-from unittest.mock import Mock
+from unittest.mock import patch, Mock
+import json
 
 
 def test_apply_cfold_changes():
@@ -42,7 +38,7 @@ def test_postprocess_response_no_json():
 
 def test_postprocess_response_embedded_json():
     """Test postprocess_response with embedded JSON."""
-    response = 'Intro [{"path": "file.txt"}] end'
+    response = "Intro [{\"path\": \"file.txt\"}] end"
     cleaned, message = postprocess_response(response)
     assert cleaned == '{"files": [{"path": "file.txt"}]}'
     assert message == "Intro  end"
@@ -85,3 +81,14 @@ def test_recv_full_incomplete():
     mock_conn.recv.side_effect = [b"ab", b""]
     with pytest.raises(ValueError):
         recv_full(mock_conn, 3)
+
+
+def test_send_response():
+    """Test send_response sends with length prefix."""
+    mock_conn = Mock()
+    send_response(mock_conn, {"key": "value"})
+    sent = mock_conn.send.call_args[0][0]
+    length = int.from_bytes(sent[:4], "big")
+    data = sent[4:]
+    assert json.loads(data) == {"key": "value"}
+    assert length == len(data)
