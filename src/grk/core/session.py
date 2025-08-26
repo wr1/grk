@@ -228,7 +228,7 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                 traceback.print_exc()
                 try:
                     send_response(conn, {"error": str(e)})
-                except:
+                except Exception:
                     pass
                 conn.close()
     except Exception as e:
