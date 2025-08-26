@@ -49,6 +49,8 @@ brief:
 
 ## Usage
 
+![img](docs/assets/clihelp.png)
+
 ### Quick start 
 
 Using [shorthand](resources/shorthand.fish) for fish shell. 
