@@ -11,7 +11,7 @@ def test_load_config_no_file(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     result = load_config()
     assert isinstance(result, ProfileConfig)
-    assert result.model == "grok-4"
+    assert result.model == "grok-code-fast-1"
     assert result.role == "you are an expert engineer and developer"
     assert result.output == "output.json"
     assert result.prompt_prepend == ""
@@ -85,7 +85,7 @@ def test_load_config_invalid_yaml(tmp_path, monkeypatch, caplog):
         result = load_config()
     assert "Failed to load .grkrc profile 'default'" in caplog.text
     assert isinstance(result, ProfileConfig)
-    assert result.model == "grok-4"
+    assert result.model == "grok-code-fast-1"
     assert result.role == "you are an expert engineer and developer"
     assert result.output == "output.json"
     assert result.prompt_prepend == ""

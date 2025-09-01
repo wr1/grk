@@ -90,6 +90,16 @@ def test_init_command(capture_output, tmp_path, monkeypatch, caplog):
     assert "Default .grkrc with profiles created successfully." in caplog.text
 
 
+def test_init_command_with_existing_config(capture_output, tmp_path, monkeypatch, caplog):
+    """Test init command with existing .grkrc file."""
+    monkeypatch.chdir(tmp_path)
+    Path(".grkrc").write_text("profiles:\n  default:\n    model: grok-3\n")
+    with caplog.at_level("INFO"):
+        result = capture_output(["config", "init"])
+    assert result.exit_code == 0
+    assert "Profile 'default' differs from default" in caplog.text
+
+
 def test_run_command_no_api_key(capture_output, tmp_path, monkeypatch):
     """Test run command without API key set."""
     monkeypatch.chdir(tmp_path)
@@ -144,7 +154,7 @@ def test_run_command_with_profile(
     assert "Running grk with the following settings:" in result.output
 
     # Check if API was called with correct model based on profile
-    expected_models = {"default": "grok-4", "py": "grok-4", "doc": "grok-4"}
+    expected_models = {"default": "grok-code-fast-1", "py": "grok-code-fast-1", "doc": "grok-4"}
     called_model = mock_client.chat.create.call_args.kwargs["model"]
     assert called_model == expected_models.get(profile, "grok-4")
 
@@ -167,6 +177,16 @@ def test_session_up_command(capture_output, tmp_path, monkeypatch, mocker, caplo
     assert "Session started with PID 12345" in caplog.text
     assert Path(".grk_session.pid").exists()
     assert Path(".grk_session.json").exists()
+
+
+def test_session_up_invalid_file(capture_output, tmp_path, monkeypatch):
+    """Test session up command with invalid file."""
+    monkeypatch.chdir(tmp_path)
+    result = capture_output(
+        ["session", "up", "nonexistent.json"], env={"XAI_API_KEY": "dummy_key"}
+    )
+    assert result.exit_code != 0
+    assert "Invalid file" in result.output
 
 
 def test_session_msg_postprocessing(capture_output, tmp_path, monkeypatch, mocker):
@@ -213,6 +233,28 @@ def test_session_msg_postprocessing(capture_output, tmp_path, monkeypatch, mocke
     assert "= No changes detected." in result.output
 
 
+def test_session_msg_invalid_input_file(capture_output, tmp_path, monkeypatch):
+    """Test session msg command with invalid input file."""
+    monkeypatch.chdir(tmp_path)
+    Path("initial.json").write_text('{"files": []}')
+    Path(".grk_session.pid").write_text("12345")
+    Path(".grk_session.json").write_text(
+        json.dumps({"profile": "default", "initial_file": "initial.json", "pid": 12345})
+    )
+    Path(".grk_session.port").write_text("12345")
+    result = capture_output(["session", "msg", "Test prompt", "-i", "nonexistent.txt"])
+    assert result.exit_code != 0
+    assert "Invalid input file" in result.output
+
+
+def test_session_msg_no_session(capture_output, tmp_path, monkeypatch):
+    """Test session msg command with no session running."""
+    monkeypatch.chdir(tmp_path)
+    result = capture_output(["session", "msg", "Test prompt"])
+    assert result.exit_code != 0
+    assert "No session running" in result.output
+
+
 def test_session_new_command(capture_output, tmp_path, monkeypatch, mocker):
     """Test session new command to renew instruction stack."""
     monkeypatch.chdir(tmp_path)
@@ -238,32 +280,13 @@ def test_session_new_command(capture_output, tmp_path, monkeypatch, mocker):
     assert "Success: Instruction stack renewed." in result.output
 
 
-@pytest.mark.parametrize(
-    "raw_response, expected_cleaned, expected_message",
-    [
-        ('[{"path": "file.txt"}]', '{"files": [{"path": "file.txt"}]}', ""),
-        (
-            'Here\'s the update: ```json\n[{"path": "file.txt"}]\n```',
-            '{"files": [{"path": "file.txt"}]}',
-            "Here's the update:",
-        ),
-        (
-            'Explanatory text {"files": [{"path": "file.txt"}]}',
-            '{"files": [{"path": "file.txt"}]}',
-            "Explanatory text",
-        ),
-        ("Invalid response without JSON", "", "Invalid response without JSON"),
-    ],
-)
-def test_postprocess_response(raw_response, expected_cleaned, expected_message):
-    """Test postprocess_response function."""
-    from grk.core.session import postprocess_response
-
-    cleaned, message = postprocess_response(raw_response)
-    assert cleaned.replace("\n", "") == expected_cleaned.replace(
-        "\n", ""
-    )  # Ignore formatting
-    assert message == expected_message
+def test_session_new_no_session(capture_output, tmp_path, monkeypatch):
+    """Test session new command with no session running."""
+    monkeypatch.chdir(tmp_path)
+    Path("file.json").write_text('{"instructions": [], "files": []}')
+    result = capture_output(["session", "new", "file.json"])
+    assert result.exit_code != 0
+    assert "No session running" in result.output
 
 
 def test_session_down_command(capture_output, tmp_path, monkeypatch, mocker):
@@ -289,6 +312,14 @@ def test_session_down_command(capture_output, tmp_path, monkeypatch, mocker):
     assert result.exit_code == 0
     assert not Path(".grk_session.pid").exists()
     assert not Path(".grk_session.port").exists()
+
+
+def test_session_down_no_session(capture_output, tmp_path, monkeypatch):
+    """Test session down command with no session running."""
+    monkeypatch.chdir(tmp_path)
+    result = capture_output(["session", "down"])
+    assert result.exit_code != 0
+    assert "No session running" in result.output
 
 
 def test_session_list_command(capture_output, tmp_path, monkeypatch, mocker):
@@ -321,3 +352,39 @@ def test_session_list_command(capture_output, tmp_path, monkeypatch, mocker):
     assert "Session Details:" in result.output
     assert "file1.txt" in result.output
     assert "system: test" in result.output
+
+
+def test_session_list_no_session(capture_output, tmp_path, monkeypatch):
+    """Test session list command with no session running."""
+    monkeypatch.chdir(tmp_path)
+    result = capture_output(["session", "list"])
+    assert result.exit_code != 0
+    assert "No session running" in result.output
+
+
+@pytest.mark.parametrize(
+    "raw_response, expected_cleaned, expected_message",
+    [
+        ('[{"path": "file.txt"}]', '{"files": [{"path": "file.txt"}]}', ""),
+        (
+            'Here\'s the update: ```json\n[{"path": "file.txt"}]\n```',
+            '{"files": [{"path": "file.txt"}]}',
+            "Here's the update:",
+        ),
+        (
+            'Explanatory text {"files": [{"path": "file.txt"}]}',
+            '{"files": [{"path": "file.txt"}]}',
+            "Explanatory text",
+        ),
+        ("Invalid response without JSON", "", "Invalid response without JSON"),
+    ],
+)
+def test_postprocess_response(raw_response, expected_cleaned, expected_message):
+    """Test postprocess_response function."""
+    from grk.core.session import postprocess_response
+
+    cleaned, message = postprocess_response(raw_response)
+    assert cleaned.replace("\n", "") == expected_cleaned.replace(
+        "\n", ""
+    )  # Ignore formatting
+    assert message == expected_message

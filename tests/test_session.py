@@ -33,6 +33,17 @@ def test_apply_cfold_changes():
     assert "file2.txt" not in [f["path"] for f in updated]
 
 
+def test_apply_cfold_changes_invalid_path():
+    """Test applying cfold changes with invalid paths."""
+    existing = [{"path": "file.txt", "content": "old"}]
+    changes = [
+        {"path": "../invalid.txt", "content": "new"},
+        {"path": "/root/invalid.txt", "content": "new2"},
+    ]
+    updated = apply_cfold_changes(existing, changes)
+    assert updated == existing  # No changes applied
+
+
 def test_postprocess_response_no_json():
     """Test postprocess_response with no JSON."""
     response = "Just text"
