@@ -14,7 +14,7 @@ DEFAULT_PROFILES = {
         "role": "you are an expert engineer and developer",
         "output": "output.json",
         "prompt_prepend": "",
-        "temperature": 0.25,
+        "temperature": 0.05,
     },
     "py": {
         "model": "grok-code-fast-1",
