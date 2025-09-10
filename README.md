@@ -49,27 +49,8 @@ brief:
 ```
 
 ## Usage
-<pre><font color="#26A269"><b>➜</b></font> <font color="#12488B">grk</font>
-<b>Usage: grk </b><font color="#A2734C"><b>...</b></font><b> </b><font color="#2D2D2D"><b> (--json, -h, --help)</b></font>
-<font color="#D0CFCC"><b>Description: CLI tool to interact with Grok.</b></font>
-<font color="#228594"><b>grk</b></font><font color="#2D2D2D">────────────────────────────────────</font><font color="#8B8A88">CLI tool to interact with Grok.</font>
-<font color="#2D2D2D">├── </font><font color="#26A269"><b>config</b></font><font color="#2D2D2D">─────────────────────────────</font><font color="#D0CFCC">Manage configuration.</font>
-<font color="#2D2D2D">│   ├── </font><font color="#2AA1B3">init</font><font color="#2D2D2D">───────────────────────────</font><font color="#D0CFCC">Initialize .grkrc with default profiles.</font>
-<font color="#2D2D2D">│   └── </font><font color="#2AA1B3">list</font><font color="#2D2D2D">───────────────────────────</font><font color="#D0CFCC">List the configurations from .grkrc with YAML syntax highlighting.</font>
-<font color="#2D2D2D">├── </font><font color="#26A269"><b>session</b></font><font color="#2D2D2D">────────────────────────────</font><font color="#D0CFCC">Interactive Session Mode, manage background sessions for stateful, multi-query</font>
-<font color="#2D2D2D">│   </font>                                   <font color="#D0CFCC">interactions with Grok.</font>
-<font color="#2D2D2D">│   ├── </font><font color="#2AA1B3">up</font> <font color="#FFAF00">[FILE, str]</font><font color="#2D2D2D">─────────────────</font><font color="#D0CFCC">Start a background session process with initial codebase.</font>
-<font color="#2D2D2D">│   │   └── </font><font color="#A2734C">--profile, -p</font><font color="#8B8A88">: str</font><font color="#2D2D2D">─────────</font><font color="#A2734C"><i>The profile to use</i></font><font color="#8B8A88"><b> (default: default)</b></font>
-<font color="#2D2D2D">│   ├── </font><font color="#2AA1B3">msg</font> <font color="#FFAF00">[MESSAGE, str]</font><font color="#2D2D2D">─────────────</font><font color="#D0CFCC">Send a message to the background session.</font>
-<font color="#2D2D2D">│   │   ├── </font><font color="#A2734C">--output, -o</font><font color="#8B8A88">: str</font><font color="#2D2D2D">──────────</font><font color="#A2734C"><i>Output file</i></font><font color="#8B8A88"><b> (default: __temp.json)</b></font>
-<font color="#2D2D2D">│   │   └── </font><font color="#A2734C">--input_file, -i</font><font color="#8B8A88">: str</font><font color="#2D2D2D">──────</font><font color="#A2734C"><i>Additional input file</i></font>
-<font color="#2D2D2D">│   ├── </font><font color="#2AA1B3">down</font><font color="#2D2D2D">───────────────────────────</font><font color="#D0CFCC">Tear down the background session process.</font>
-<font color="#2D2D2D">│   ├── </font><font color="#2AA1B3">list</font><font color="#2D2D2D">───────────────────────────</font><font color="#D0CFCC">List file names and instruction synopses of the session.</font>
-<font color="#2D2D2D">│   └── </font><font color="#2AA1B3">new</font> <font color="#FFAF00">[FILE, str]</font><font color="#2D2D2D">────────────────</font><font color="#D0CFCC">Renew the instruction stack with a new file, preparing for the next message.</font>
-<font color="#2D2D2D">└── </font><font color="#26A269"><b>single</b></font><font color="#2D2D2D">─────────────────────────────</font><font color="#D0CFCC">Single-Shot mode, run one-off queries to Grok.</font>
-<font color="#2D2D2D">    └── </font><font color="#2AA1B3">run</font> <font color="#FFAF00">[FILE, str] [MESSAGE, str]</font><font color="#2D2D2D">─</font><font color="#D0CFCC">Run the Grok LLM processing using the specified profile (single-shot mode).</font>
-<font color="#2D2D2D">        └── </font><font color="#A2734C">--profile, -p</font><font color="#8B8A88">: str</font><font color="#2D2D2D">─────────</font><font color="#A2734C"><i>The profile to use</i></font><font color="#8B8A88"><b> (default: default)</b></font>
-</pre>
+
+![help](docs/assets/help.svg)
 
 ### Quick start 
 
