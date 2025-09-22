@@ -4,7 +4,7 @@ import pytest
 import json
 from pathlib import Path
 from io import StringIO
-from grk.cli import main
+from grk.cli.cli import main
 import sys
 import os
 
@@ -90,7 +90,9 @@ def test_init_command(capture_output, tmp_path, monkeypatch, caplog):
     assert "Default .grkrc with profiles created successfully." in caplog.text
 
 
-def test_init_command_with_existing_config(capture_output, tmp_path, monkeypatch, caplog):
+def test_init_command_with_existing_config(
+    capture_output, tmp_path, monkeypatch, caplog
+):
     """Test init command with existing .grkrc file."""
     monkeypatch.chdir(tmp_path)
     Path(".grkrc").write_text("profiles:\n  default:\n    model: grok-3\n")
@@ -143,7 +145,7 @@ def test_run_command_with_profile(
     mock_sample.content = f"Response for {profile}"
     mock_chat.sample.return_value = mock_sample
     mock_client.chat.create.return_value = mock_chat
-    mocker.patch("grk.api.Client", return_value=mock_client)
+    mocker.patch("grk.core.api.Client", return_value=mock_client)
 
     cmd = ["single", "run", "input.txt", "Test prompt"]
     if profile != "default":
@@ -154,9 +156,13 @@ def test_run_command_with_profile(
     assert "Running grk with the following settings:" in result.output
 
     # Check if API was called with correct model based on profile
-    expected_models = {"default": "grok-code-fast-1", "py": "grok-code-fast-1", "doc": "grok-4"}
+    expected_models = {
+        "default": "grok-code-fast-1",
+        "py": "grok-code-fast-1",
+        "doc": "grok-4-fast",
+    }
     called_model = mock_client.chat.create.call_args.kwargs["model"]
-    assert called_model == expected_models.get(profile, "grok-4")
+    assert called_model == expected_models.get(profile, "grok-4-fast")
 
     # Check output files
     assert Path("output.json").exists()  # Adjusted to match default

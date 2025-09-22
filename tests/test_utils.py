@@ -1,7 +1,7 @@
 """Tests for utility functions in grk.utils."""
 
 from rich.console import Console
-from grk.utils import (
+from grk.utils.utils import (
     get_synopsis,
     analyze_changes,
     get_change_summary,

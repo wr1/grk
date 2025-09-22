@@ -1,6 +1,6 @@
 import pytest
-from grk.api import call_grok
-from grk.utils import GrkException
+from grk.core.api import call_grok
+from grk.utils.utils import GrkException
 
 
 def test_call_grok_api_failure(mocker):
@@ -11,7 +11,7 @@ def test_call_grok_api_failure(mocker):
         "API error"
     )  # Mock the create method
     mocker.patch(
-        "grk.api.Client", return_value=mock_client
+        "grk.core.api.Client", return_value=mock_client
     )  # Patch Client to return the mock
 
     messages = [

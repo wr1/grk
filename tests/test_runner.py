@@ -1,9 +1,9 @@
 """Tests for runner module."""
 
 import pytest
-from grk.runner import run_grok
-from grk.config import ProfileConfig
-from grk.utils import GrkException
+from grk.core.runner import run_grok
+from grk.config.config import ProfileConfig
+from grk.utils.utils import GrkException
 from pathlib import Path
 import json
 from unittest.mock import patch
@@ -18,7 +18,7 @@ def test_run_grok_invalid_file(tmp_path, monkeypatch):
     assert "Failed to read file" in str(exc.value)
 
 
-@patch("grk.runner.call_grok")
+@patch("grk.core.runner.call_grok")
 def test_run_grok_success(mock_call, tmp_path, monkeypatch):
     """Test successful run_grok execution."""
     monkeypatch.chdir(tmp_path)
@@ -32,7 +32,7 @@ def test_run_grok_success(mock_call, tmp_path, monkeypatch):
     assert len(data["files"]) == 1
 
 
-@patch("grk.runner.call_grok")
+@patch("grk.core.runner.call_grok")
 def test_run_grok_non_json_input(mock_call, tmp_path, monkeypatch):
     """Test run_grok with non-JSON input file."""
     monkeypatch.chdir(tmp_path)

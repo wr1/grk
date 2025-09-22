@@ -9,8 +9,8 @@ import json
 import time
 from xai_sdk import Client
 from xai_sdk.chat import system, user, assistant
-from grk.models import ProfileConfig
-from grk.utils import GrkException
+from grk.config.models import ProfileConfig
+from grk.utils.utils import GrkException
 
 
 def test_apply_cfold_changes():
