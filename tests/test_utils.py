@@ -149,3 +149,13 @@ def test_build_instructions_complex_content():
     instructions = build_instructions_from_messages(messages)
     assert len(instructions) == 1
     assert "Part1 Part2" in instructions[0]["synopsis"]
+
+
+def test_analyze_changes_list_format(capsys):
+    """Test analyze_changes with list format directly."""
+    input_data = {"files": [{"path": "file1.txt", "content": "old"}]}
+    response = '[{"path": "file1.txt", "content": "new"}]'
+    console = Console()
+    analyze_changes(input_data, response, console)
+    captured = capsys.readouterr()
+    assert "Changed files:" in captured.out
