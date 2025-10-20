@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [project.scripts]
-grk = "grk.cli:main"
+grk = "grk.cli.cli:main"
 
 [dependency-groups]
 dev = [
