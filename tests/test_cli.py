@@ -394,3 +394,32 @@ def test_postprocess_response(raw_response, expected_cleaned, expected_message):
         "\n", ""
     )  # Ignore formatting
     assert message == expected_message
+
+
+def test_session_up_cleanup_stale_pid(
+    capture_output, tmp_path, monkeypatch, mocker, caplog
+):
+    """Test session up command with stale PID cleanup."""
+    monkeypatch.chdir(tmp_path)
+    Path(".grk_session.pid").write_text("99999")  # Non-existing pid
+    Path("initial.json").write_text('{"files": []}')
+    mock_popen = mocker.patch("subprocess.Popen")
+    mock_popen.return_value.pid = 12345
+    with caplog.at_level("INFO"):
+        result = capture_output(
+            ["session", "up", "initial.json"], env={"XAI_API_KEY": "dummy_key"}
+        )
+    assert "Cleaning up stale PID file" in caplog.text
+    assert result.exit_code == 0
+
+
+def test_init_command_with_existing_brief(
+    capture_output, tmp_path, monkeypatch, caplog
+):
+    """Test init command with existing brief configuration."""
+    monkeypatch.chdir(tmp_path)
+    Path(".grkrc").write_text("brief:\n  file: old_brief.txt\n  role: user\n")
+    with caplog.at_level("INFO"):
+        result = capture_output(["config", "init"])
+    assert result.exit_code == 0
+    assert "Brief differs from default, saved old as 'brief_old'." in caplog.text
