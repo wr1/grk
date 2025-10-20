@@ -11,12 +11,12 @@ from rich.live import Live
 from rich.spinner import Spinner
 from rich.console import Console
 from pathlib import Path
-from .config import load_config, create_default_config
-from .runner import run_grok
-from .config_handler import list_configs
-from .core.session import recv_full
-from .utils import print_instruction_tree, get_synopsis, GrkException
-from .logging import setup_logging
+from ..config.config import load_config, create_default_config
+from ..core.runner import run_grok
+from ..config.config_handler import list_configs
+from ..core.session import recv_full
+from ..utils.utils import print_instruction_tree, get_synopsis, GrkException
+from ..utils.logging import setup_logging
 from treeparse import cli, group, command, argument, option
 
 logger = setup_logging()
@@ -85,7 +85,7 @@ import traceback
 import sys
 from pathlib import Path
 from grk.core.session import daemon_process
-from grk.models import ProfileConfig
+from grk.config.models import ProfileConfig
 try:
     args_file = Path('.grk_session.args.json')
     args = json.loads(args_file.read_text())
@@ -152,7 +152,7 @@ def session_msg_func(message: str, output: str = "__temp.json", input_file: str 
         profile = "default"
         initial_file = "unknown"
     config = load_config(profile)
-    model_used = config.model or "grok-4"
+    model_used = config.model or "grok-4-fast"
 
     # Get current instruction summary
     client_list = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

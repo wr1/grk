@@ -4,7 +4,7 @@ from typing import List, Union
 
 from xai_sdk import Client
 from xai_sdk.chat import assistant, system, user
-from .utils import GrkException
+from ..utils.utils import GrkException
 
 
 def call_grok(

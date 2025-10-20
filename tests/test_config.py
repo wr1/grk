@@ -2,8 +2,8 @@
 
 from pathlib import Path
 from ruamel.yaml import YAML
-from grk.config import load_config, create_default_config, load_brief
-from grk.models import ProfileConfig, Brief  # Import for type checking
+from grk.config.config import load_config, create_default_config, load_brief
+from grk.config.models import ProfileConfig, Brief  # Import for type checking
 
 
 def test_load_config_no_file(tmp_path, monkeypatch):
@@ -11,11 +11,11 @@ def test_load_config_no_file(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     result = load_config()
     assert isinstance(result, ProfileConfig)
-    assert result.model == "grok-4"
+    assert result.model == "grok-code-fast-1"
     assert result.role == "you are an expert engineer and developer"
     assert result.output == "output.json"
     assert result.prompt_prepend == ""
-    assert result.temperature == 0.25
+    assert result.temperature == 0.05
 
 
 def test_load_config_default_profile(tmp_path, monkeypatch):
@@ -24,7 +24,7 @@ def test_load_config_default_profile(tmp_path, monkeypatch):
     config_data = {
         "profiles": {
             "default": {
-                "model": "grok-3",
+                "model": "grok-4-fast",
                 "role": "python-programmer",
                 "output": "output.txt",
             }
@@ -36,7 +36,7 @@ def test_load_config_default_profile(tmp_path, monkeypatch):
 
     result = load_config()
     assert isinstance(result, ProfileConfig)
-    assert result.model == "grok-3"
+    assert result.model == "grok-4-fast"
     assert result.role == "python-programmer"
 
 
@@ -46,7 +46,7 @@ def test_load_config_custom_profile(tmp_path, monkeypatch):
     config_data = {
         "profiles": {
             "custom": {
-                "model": "grok-3-custom",
+                "model": "grok-4-fast",
                 "role": "documentation-specialist",
                 "output": "custom_output.txt",
             }
@@ -58,14 +58,14 @@ def test_load_config_custom_profile(tmp_path, monkeypatch):
 
     result = load_config(profile="custom")
     assert isinstance(result, ProfileConfig)
-    assert result.model == "grok-3-custom"
+    assert result.model == "grok-4-fast"
 
 
 def test_load_config_nonexistent_profile(tmp_path, monkeypatch):
     """Test load_config when the specified profile does not exist."""
     monkeypatch.chdir(tmp_path)
     config_data = {
-        "profiles": {"default": {"model": "grok-3", "role": "python-programmer"}}
+        "profiles": {"default": {"model": "grok-4-fast", "role": "python-programmer"}}
     }
     yaml = YAML()
     with Path(".grkrc").open("w") as f:
@@ -85,11 +85,11 @@ def test_load_config_invalid_yaml(tmp_path, monkeypatch, caplog):
         result = load_config()
     assert "Failed to load .grkrc profile 'default'" in caplog.text
     assert isinstance(result, ProfileConfig)
-    assert result.model == "grok-4"
+    assert result.model == "grok-code-fast-1"
     assert result.role == "you are an expert engineer and developer"
     assert result.output == "output.json"
     assert result.prompt_prepend == ""
-    assert result.temperature == 0.25
+    assert result.temperature == 0.05
 
 
 def test_create_default_config(tmp_path, monkeypatch, caplog):

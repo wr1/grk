@@ -34,8 +34,8 @@ cu __temp.json ; uv pip install -e .
 gd
 ```
 
-![running](assets/output.gif)
-![output](assets/screenshot1.png)
+![running](docs/assets/output.gif)
+![output](docs/assets/screenshot1.png)
 
 
 

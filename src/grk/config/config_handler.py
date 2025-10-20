@@ -5,7 +5,7 @@ from ruamel.yaml import YAML
 from io import StringIO
 from rich.console import Console
 from rich.syntax import Syntax
-from .logging import setup_logging
+from ..utils.logging import setup_logging
 
 logger = setup_logging()
 

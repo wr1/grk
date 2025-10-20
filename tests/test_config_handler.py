@@ -1,8 +1,8 @@
 """Tests for config_handler module."""
 
 from pathlib import Path
-from grk.config_handler import list_configs
 from ruamel.yaml import YAML
+from grk.config.config_handler import list_configs
 
 
 def test_list_configs_no_file(tmp_path, monkeypatch, caplog):
@@ -16,7 +16,7 @@ def test_list_configs_no_file(tmp_path, monkeypatch, caplog):
 def test_list_configs_with_profiles(tmp_path, monkeypatch, capsys):
     """Test list_configs with profiles in .grkrc."""
     monkeypatch.chdir(tmp_path)
-    config_data = {"profiles": {"default": {"model": "grok-4"}}}
+    config_data = {"profiles": {"default": {"model": "grok-4-fast"}}}
     yaml = YAML()
     with Path(".grkrc").open("w") as f:
         yaml.dump(config_data, f)

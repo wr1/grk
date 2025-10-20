@@ -19,13 +19,14 @@ Install with `uv`:
 uv pip install https://github.com/wr1/grk.git
 ```
 
+
 ## Configuration
 You can create a `.grkrc` YAML file in the current directory to set default options. It now supports multiple profiles.
 
 ```yaml
 profiles:
     default:
-        model: grok-4
+        model: grok-code-fast-1
         role: expert engineer and dev
         output: output.json
         prompt_prepend: " "
@@ -49,7 +50,7 @@ brief:
 
 ## Usage
 
-![img](docs/assets/clihelp.png)
+![help](docs/assets/help.svg)
 
 ### Quick start 
 
@@ -83,7 +84,7 @@ hex-fem
 # INFO:hex_fem.fem:Writing output
 ```
 
-![running](docs/assets/output.gif)
+<!-- ![running](docs/assets/output.gif) -->
 ![output](docs/assets/screenshot1.png)
 
 ### Single-Shot (One-Off) Commands

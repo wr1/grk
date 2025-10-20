@@ -6,15 +6,15 @@ from typing import List, Union, Tuple
 from pathlib import Path
 import socket
 import time
-from ..models import ProfileConfig
-from ..config import load_brief
-from ..utils import (
+from ..config.config import ProfileConfig
+from ..config.config import load_brief
+from ..utils.utils import (
     get_change_summary,
     filter_protected_files,
     build_instructions_from_messages,
     GrkException,
 )
-from ..logging import setup_logging
+from ..utils.logging import setup_logging
 from xai_sdk.chat import assistant, system, user
 from xai_sdk import Client
 import traceback
@@ -46,7 +46,7 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
         client = Client(api_key=api_key)
 
         role_from_config = config.role or "you are an expert engineer and developer"
-        model_used = config.model or "grok-4"
+        model_used = config.model or "grok-4-fast"
         temperature = config.temperature or 0
         prompt_prepend = config.prompt_prepend or ""
 

@@ -7,13 +7,13 @@ You can configure `grk` using a `.grkrc` YAML file in the current directory. Thi
 ```yaml
 profiles:
     default:
-        model: grok-4
+        model: grok-code-fast-1
         role: you are an expert engineer and developer
         output: output.json
         prompt_prepend: ""
         temperature: 0.25
     py:
-        model: grok-4
+        model: grok-code-fast-1
         role: you are an expert python programmer, writing clean code
         output: output.json
         prompt_prepend: ""

@@ -9,15 +9,15 @@ from rich.console import Console
 from concurrent.futures import ThreadPoolExecutor
 from rich.live import Live
 from rich.spinner import Spinner
-from .config import ProfileConfig, load_brief
-from .utils import (
+from ..config.config import ProfileConfig, load_brief
+from ..utils.utils import (
     analyze_changes,
     filter_protected_files,
     build_instructions_from_messages,
     print_instruction_tree,
     GrkException,
 )
-from .logging import setup_logging
+from ..utils.logging import setup_logging
 from xai_sdk.chat import assistant, system, user
 
 logger = setup_logging()
@@ -31,7 +31,7 @@ def run_grok(
     profile: str = "default",
 ):
     """Execute the Grok LLM run logic with given inputs and config."""
-    model_used = config.model or "grok-4"
+    model_used = config.model or "grok-4-fast"
     role_from_config = config.role or "you are an expert engineer and developer"
     output_file = config.output or "output.json"
     prompt_prepend = config.prompt_prepend or ""
@@ -103,6 +103,8 @@ def run_grok(
         else:
             messages.append(user(file_content))
             messages.append(user(full_prompt))
+        is_cfold = False
+        input_data = None
     except json.JSONDecodeError:
         messages.append(user(file_content))
         messages.append(user(full_prompt))

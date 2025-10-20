@@ -4,41 +4,41 @@ from pathlib import Path
 from ruamel.yaml import YAML
 from .models import FullConfig, ProfileConfig, Brief  # Import Pydantic models
 from typing import Optional
-from .logging import setup_logging
+from ..utils.logging import setup_logging
 
 logger = setup_logging()
 
 DEFAULT_PROFILES = {
     "default": {
-        "model": "grok-4",
+        "model": "grok-code-fast-1",
         "role": "you are an expert engineer and developer",
         "output": "output.json",
         "prompt_prepend": "",
-        "temperature": 0.25,
+        "temperature": 0.05,
     },
     "py": {
-        "model": "grok-4",
+        "model": "grok-code-fast-1",
         "role": "you are an expert python programmer, writing clean code",
         "output": "output.json",
         "prompt_prepend": "",
         "temperature": 0,
     },
     "doc": {
-        "model": "grok-4",
+        "model": "grok-4-fast",
         "role": "you are an expert in writing documentation",
         "output": "output.json",
         "prompt_prepend": "",
         "temperature": 0.7,
     },
     "law": {
-        "model": "grok-4",
+        "model": "grok-4-fast",
         "role": "you are an expert lawyer, providing legal advice",
         "output": "output.json",
         "prompt_prepend": "write concise legal argumentation, prefer latex",
         "temperature": 0.35,
     },
     "psy": {
-        "model": "grok-4",
+        "model": "grok-4-fast",
         "role": "you are an expert professor in psychology",
         "output": "output.json",
         "prompt_prepend": "",
