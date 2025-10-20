@@ -3,7 +3,6 @@
 from pathlib import Path
 from ruamel.yaml import YAML
 from grk.config.config_handler import list_configs
-from grk.config.config import DEFAULT_PROFILES
 
 
 def test_list_configs_no_file(tmp_path, monkeypatch, caplog):

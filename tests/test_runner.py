@@ -51,7 +51,6 @@ def test_run_grok_with_brief(mock_load_brief, mock_call, tmp_path, monkeypatch):
     Path("input.json").write_text('{"files": []}')
     Path("brief.txt").write_text("brief content")
     from grk.config.models import Brief
-
     mock_load_brief.return_value = Brief(file="brief.txt", role="system")
     mock_call.return_value = '{"files": []}'
     config = ProfileConfig(output="output.json")
@@ -59,10 +58,12 @@ def test_run_grok_with_brief(mock_load_brief, mock_call, tmp_path, monkeypatch):
     # Verify messages include brief
     args = mock_call.call_args
     messages = args[0][0]
-    assert len(messages) == 3  # system role, system brief, user prompt
-    assert messages[0].role == "system"
-    assert messages[0].content == "you are an expert engineer and developer"
-    assert messages[1].role == "system"
-    assert messages[1].content == "brief content"
-    assert messages[2].role == "user"
-    assert "Current codebase files" in messages[2].content
+    assert len(messages) == 4  # system role, system brief, user files, user prompt
+    assert messages[0].role == 3  # ROLE_SYSTEM
+    assert messages[0].content[0].text == "you are an expert engineer and developer"
+    assert messages[1].role == 3
+    assert messages[1].content[0].text == "brief content"
+    assert messages[2].role == 1  # ROLE_USER
+    assert messages[2].content[0].text == "Current codebase files:\n```json\n[]\n```"
+    assert messages[3].role == 1
+    assert messages[3].content[0].text == "prompt"
