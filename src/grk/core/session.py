@@ -6,6 +6,7 @@ from typing import List, Union, Tuple
 from pathlib import Path
 import socket
 import time
+import difflib
 from ..config.config import ProfileConfig
 from ..config.config import load_brief
 from ..utils.utils import (
@@ -152,6 +153,53 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                     send_response(
                         conn, {"message": "Instruction stack and files renewed."}
                     )
+                    conn.close()
+                elif cmd == "sync":
+                    synced_count = 0
+                    checked_files = []
+                    changed_details = []
+                    for f in cached_codebase:
+                        path = f["path"]
+                        checked_files.append(path)
+                        if path.startswith(("/", "../")):
+                            logger.info(f"Skipping invalid path: {path}")
+                            continue
+                        if not Path(path).exists():
+                            logger.info(f"File not found on disk: {path}")
+                            continue
+                        try:
+                            new_content = Path(path).read_text()
+                            old_content = f.get("content", "")
+                            if new_content != old_content:
+                                diff = list(
+                                    difflib.unified_diff(
+                                        old_content.splitlines(keepends=True),
+                                        new_content.splitlines(keepends=True),
+                                        fromfile=f"{path} (cached)",
+                                        tofile=f"{path} (disk)",
+                                    )
+                                )
+                                diff_str = "".join(diff)
+                                changed_details.append(f"{path}: changed\n{diff_str}")
+                                f["content"] = new_content
+                                synced_count += 1
+                            else:
+                                logger.info(f"{path}: no change")
+                        except Exception as e:
+                            logger.warning(f"Error syncing {path}: {e}")
+                    save_cached_codebase(cached_codebase)
+                    message = f"Synced {synced_count} files.\n"
+                    message += (
+                        "Checked files:\n"
+                        + "\n".join(
+                            f"- {p}: {'changed' if any(d.startswith(p + ':') for d in changed_details) else 'no change'}"
+                            for p in checked_files
+                        )
+                        + "\n"
+                    )
+                    if changed_details:
+                        message += "Changes:\n" + "\n".join(changed_details)
+                    send_response(conn, {"message": message})
                     conn.close()
                 elif cmd == "query":
                     prompt = request["prompt"]

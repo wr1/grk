@@ -21,6 +21,7 @@ dependencies = [
 [project.scripts]
 grk = "grk.cli.cli:main"
 
+
 [dependency-groups]
 dev = [
     "pyinstaller>=6.13.0,<7",

@@ -51,6 +51,7 @@ def test_run_grok_with_brief(mock_load_brief, mock_call, tmp_path, monkeypatch):
     Path("input.json").write_text('{"files": []}')
     Path("brief.txt").write_text("brief content")
     from grk.config.models import Brief
+
     mock_load_brief.return_value = Brief(file="brief.txt", role="system")
     mock_call.return_value = '{"files": []}'
     config = ProfileConfig(output="output.json")
