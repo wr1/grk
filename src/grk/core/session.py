@@ -201,6 +201,37 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                         message += "Changes:\n" + "\n".join(changed_details)
                     send_response(conn, {"message": message})
                     conn.close()
+                elif cmd == "add":
+                    add_file = request["file"]
+                    if add_file.startswith(("/", "../")):
+                        send_response(conn, {"error": f"Invalid path: {add_file}"})
+                        conn.close()
+                        continue
+                    if not Path(add_file).exists() or Path(add_file).is_dir():
+                        send_response(
+                            conn,
+                            {"error": f"File not found or is directory: {add_file}"},
+                        )
+                        conn.close()
+                        continue
+                    try:
+                        content = Path(add_file).read_text()
+                        # Check if file already in codebase
+                        existing_paths = [f["path"] for f in cached_codebase]
+                        if add_file in existing_paths:
+                            send_response(
+                                conn, {"error": f"File already in session: {add_file}"}
+                            )
+                            conn.close()
+                            continue
+                        cached_codebase.append({"path": add_file, "content": content})
+                        save_cached_codebase(cached_codebase)
+                        send_response(
+                            conn, {"message": f"File '{add_file}' added to session."}
+                        )
+                    except Exception as e:
+                        send_response(conn, {"error": f"Failed to add file: {str(e)}"})
+                    conn.close()
                 elif cmd == "query":
                     prompt = request["prompt"]
                     output = request.get("output", "__temp.json")
