@@ -18,6 +18,7 @@ def run_func(file: str, message: str, profile: str = "default"):
     config = load_config(profile)
     run_grok(file, message, config, api_key, profile)
 
+
 single_grp = group(
     name="single",
     help="Single-Shot mode, run one-off queries to Grok.",
