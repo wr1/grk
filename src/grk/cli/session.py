@@ -12,7 +12,6 @@ from rich.spinner import Spinner
 from rich.console import Console
 from pathlib import Path
 from ..config.config import load_config
-from ..config.config_handler import list_configs
 from ..core.session import recv_full
 from ..utils.utils import print_instruction_tree, get_synopsis, GrkException
 from ..utils.logging import setup_logging
@@ -443,6 +442,59 @@ def session_sync_func():
         client.close()
 
 
+def session_add_func(file: str):
+    """Add a file to the internal files list of the session."""
+    if not Path(file).exists() or Path(file).is_dir():
+        raise GrkException(f"Invalid file: {file}")
+    console = Console()
+    pid_file = Path(".grk_session.pid")
+    port_file = Path(".grk_session.port")
+    session_file = Path(".grk_session.json")
+    log_file = Path(".grk_daemon.log")
+    if not pid_file.exists():
+        raise GrkException("No session running")
+    if not port_file.exists():
+        raise GrkException("Port file missing; session may have failed to start")
+    port = int(port_file.read_text().strip())
+
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        client.connect(("127.0.0.1", port))
+        request = {"cmd": "add", "file": file}
+        send_request(client, request)
+
+        response = recv_response(client)
+
+        data = json.loads(response)
+        if "error" in data:
+            console.print(f"[bold red]Error:[/bold red] {data['error']}")
+            return
+        console.print(
+            f"[bold green]Success:[/bold green] {data.get('message', 'File added to session.')}"
+        )
+    except ConnectionRefusedError:
+        error_msg = "Session not responding."
+        if pid_file.exists():
+            with pid_file.open() as f:
+                pid = int(f.read().strip())
+            try:
+                os.kill(pid, 0)
+                error_msg += " Process is running but not listening."
+            except OSError:
+                error_msg += " Process is not running. Cleaning up."
+                pid_file.unlink()
+                port_file.unlink(missing_ok=True)
+                session_file.unlink(missing_ok=True)
+        if log_file.exists():
+            log_content = log_file.read_text()
+            error_msg += f"\nDaemon log:\n{log_content}"
+        else:
+            error_msg += " No daemon log found."
+        raise GrkException(error_msg)
+    finally:
+        client.close()
+
+
 def send_request(client: socket.socket, request: dict):
     """Send request with length prefix."""
     request_json = json.dumps(request)
@@ -484,6 +536,7 @@ def recv_response(client: socket.socket, model_used: str = None) -> str:
                 time.sleep(0.1)
         data_bytes = future_data.result()
         return data_bytes.decode("utf-8")
+
 
 session_grp = group(
     name="session",
@@ -567,3 +620,13 @@ sync_cmd = command(
     callback=session_sync_func,
 )
 session_grp.commands.append(sync_cmd)
+
+add_cmd = command(
+    name="add",
+    help="Add a file to the internal files list of the session.",
+    callback=session_add_func,
+    arguments=[
+        argument(name="file", arg_type=str, sort_key=0),
+    ],
+)
+session_grp.commands.append(add_cmd)
