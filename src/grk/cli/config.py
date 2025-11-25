@@ -1,6 +1,5 @@
 """Config CLI commands."""
 
-import os
 from ..config.config import create_default_config
 from ..config.config_handler import list_configs
 from treeparse import group, command
@@ -14,6 +13,7 @@ def init_func():
 def list_func():
     """List the configurations from .grkrc with YAML syntax highlighting."""
     list_configs()
+
 
 config_grp = group(
     name="config",
