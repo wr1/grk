@@ -31,7 +31,6 @@ function gs
     grk session sync 
 end
 
-
 function cf
     cfold fold $argv
 end

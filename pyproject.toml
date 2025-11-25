@@ -16,6 +16,7 @@ dependencies = [
     "pydantic>=2.6",  # Added for config validation and parsing
     "xai-sdk",  # Added for XAI SDK
     "treeparse",  # Added for CLI parsing
+    "numpy",  # Added for vectorisation
 ]
 
 [project.scripts]
