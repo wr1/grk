@@ -24,9 +24,11 @@ def main():
         app.run()
     except Exception as e:
         from rich.console import Console
+
         console = Console()
         console.print(f"[bold red]Error:[/bold red] {str(e)}")
         import sys
+
         sys.exit(1)
 
 
