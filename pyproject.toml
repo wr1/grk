@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "grk-cli"
-version = "0.2.2"
+version = "0.2.3"
 description = "CLI tool to call Grok LLM"
 authors = [{ name = "wr1", email = "8971152+wr1@users.noreply.github.com"}]
 requires-python = ">=3.10,<3.14"
@@ -16,10 +16,12 @@ dependencies = [
     "pydantic>=2.6",  # Added for config validation and parsing
     "xai-sdk",  # Added for XAI SDK
     "treeparse",  # Added for CLI parsing
+    "numpy",  # Added for vectorisation
 ]
 
 [project.scripts]
 grk = "grk.cli.cli:main"
+
 
 [dependency-groups]
 dev = [

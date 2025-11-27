@@ -34,7 +34,7 @@ DEFAULT_PROFILES = {
         "model": "grok-4-fast",
         "role": "you are an expert lawyer, providing legal advice",
         "output": "output.json",
-        "prompt_prepend": "write concise legal argumentation, prefer latex",
+        "prompt_prepend": "write concise legal argumentation, prefer typst syntax",
         "temperature": 0.35,
     },
     "psy": {

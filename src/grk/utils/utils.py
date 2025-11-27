@@ -169,7 +169,7 @@ def get_change_summary(input_data: dict, response: str) -> str:
             diff = difflib.unified_diff(
                 old_lines, new_lines, fromfile=path + " (old)", tofile=path + " (new)"
             )
-            diff_str = "\n".join(diff)
+            diff_str = "".join(diff)
             diff_strs.append(f"Diff for {path}:\n{diff_str}\n")
 
         summary_lines = [tree_str]
