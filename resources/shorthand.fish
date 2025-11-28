@@ -31,6 +31,12 @@ function gs
     grk session sync 
 end
 
+function ga
+    # Shortcut for grk session add
+    grk session add $argv
+end
+
+
 function cf
     cfold fold $argv
 end
