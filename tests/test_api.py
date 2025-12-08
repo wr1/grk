@@ -12,6 +12,7 @@ def test_call_grok_api_failure(mocker):
     )  # Mock the create method
     mocker.patch(
         "grk.core.api.Client", return_value=mock_client
+
     )  # Patch Client to return the mock
 
     messages = [

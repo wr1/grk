@@ -19,9 +19,8 @@ def call_grok(
         chat = client.chat.create(
             model=model,
             temperature=temperature,
+            messages=messages,  # Pass messages directly to create
         )
-        for msg in messages:
-            chat.append(msg)
         response = chat.sample()
         if not isinstance(response.content, str):
             raise ValueError("API response is not a string")

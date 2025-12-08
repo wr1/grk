@@ -179,7 +179,8 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                                         tofile=f"{path} (disk)",
                                     )
                                 )
-                                diff_str = "".join(diff)
+                                diff_lines = [line.rstrip("\n") for line in diff]
+                                diff_str = "\n".join("  " + line for line in diff_lines)
                                 changed_details.append(f"{path}: changed\n{diff_str}")
                                 f["content"] = new_content
                                 synced_count += 1

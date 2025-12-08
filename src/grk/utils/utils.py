@@ -164,12 +164,13 @@ def get_change_summary(input_data: dict, response: str) -> str:
         # Build diffs for changed files
         diff_strs = []
         for path in changed_files:
-            old_lines = input_files[path].splitlines()
-            new_lines = output_files[path].splitlines()
-            diff = difflib.unified_diff(
+            old_lines = input_files[path].splitlines(keepends=True)
+            new_lines = output_files[path].splitlines(keepends=True)
+            diff = list(difflib.unified_diff(
                 old_lines, new_lines, fromfile=path + " (old)", tofile=path + " (new)"
-            )
-            diff_str = "".join(diff)
+            ))
+            diff_lines = [line.rstrip("\n") for line in diff]
+            diff_str = "\n".join("  " + line for line in diff_lines)
             diff_strs.append(f"Diff for {path}:\n{diff_str}\n")
 
         summary_lines = [tree_str]
