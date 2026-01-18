@@ -8,16 +8,21 @@ version = "0.2.4"
 description = "CLI tool for Grok LLM"
 authors = [{ name = "wr1", email = "8971152+wr1@users.noreply.github.com"}]
 readme = "README.md"
+requires-python = ">=3.10"
 dependencies = [
     "xai-sdk",
     "pydantic",
     "rich",
     "ruamel.yaml",
     "treeparse",
+    "pytest",
+    "pytest-mock",
+    "pytest-cov",
+    "opentelemetry-sdk>=1.15.0,<1.20.0",
 ]
 
 [project.scripts]
-grk = "grk.cli:main"
+grk = "grk.cli.cli:main"
 
 [tool.ruff]
 line-length = 88
@@ -28,3 +33,4 @@ ignore = []
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "--cov=src --cov-report=term-missing"

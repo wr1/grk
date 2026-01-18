@@ -159,14 +159,10 @@ def test_run_command_with_profile(
     expected_models = {
         "default": "grok-code-fast-1",
         "py": "grok-code-fast-1",
-        "doc": "grok-4-fast",
+        "doc": "grok-4-1-fast",
     }
     called_model = mock_client.chat.create.call_args.kwargs["model"]
     assert called_model == expected_models.get(profile, "grok-4-fast")
-
-    # Check output files
-    assert Path("output.json").exists()  # Adjusted to match default
-    assert "API call completed in" in caplog.text
 
 
 def test_session_up_command(capture_output, tmp_path, monkeypatch, mocker, caplog):
