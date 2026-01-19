@@ -6,6 +6,7 @@ from io import StringIO
 from rich.console import Console
 from rich.syntax import Syntax
 from ..utils.logging import setup_logging
+from .config import DEFAULT_PROFILES
 
 logger = setup_logging()
 
@@ -14,7 +15,14 @@ def list_configs():
     """List configurations from .grkrc with YAML syntax highlighting."""
     config_file = Path(".grkrc")
     if not config_file.exists():
-        logger.info("No .grkrc file found in the current directory.")
+        logger.info("No .grkrc file found in the current directory. Listing default profiles:")
+        console = Console()
+        yaml_dumper = YAML()
+        with StringIO() as stream:
+            yaml_dumper.dump({"profiles": DEFAULT_PROFILES}, stream)
+            yaml_str = stream.getvalue()
+        syntax = Syntax(yaml_str, "yaml", theme="monokai", line_numbers=True)
+        console.print(syntax)
         return
     try:
         yaml = YAML()

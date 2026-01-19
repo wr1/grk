@@ -44,11 +44,18 @@ DEFAULT_PROFILES = {
         "prompt_prepend": "",
         "temperature": 0.3,
     },
+    "plan": {
+        "model": "grok-4-1-fast",
+        "role": "you are an expert project planner and strategist",
+        "output": "output.json",
+        "prompt_prepend": "",
+        "temperature": 0.7,
+    },
 }
 
 DEFAULT_BRIEF = {"file": "design_brief.typ", "role": "assistant"}
 
-DEFAULT_BRIEF_CONTENT = '#set page(margin: 1in)\n#set text(font: "New Computer Modern", size: 12pt)\n\n= Design Brief\n\nThis is a template for your project design brief. Edit as needed.\n'
+DEFAULT_BRIEF_CONTENT = '= Design Brief\n\nThis is a template for your project design brief. Edit as needed.\n'
 
 
 def load_config(profile: str = "default") -> ProfileConfig:

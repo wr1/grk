@@ -1,4 +1,4 @@
-"""Tests for Grok CLI commands."""
+"""Tests for CLI session commands."""
 
 import pytest
 import json
@@ -42,127 +42,6 @@ def capture_output():
         return type("Result", (), {"exit_code": exit_code, "output": output + error})
 
     return _capture
-
-
-def test_main_help(capture_output):
-    """Test main CLI help command."""
-    result = capture_output(["--help"])
-    assert result.exit_code == 0
-    assert "grk" in result.output
-    assert "config" in result.output
-    assert "single" in result.output
-    assert "session" in result.output
-
-
-def test_session_help(capture_output):
-    """Test session subgroup help."""
-    result = capture_output(["session", "--help"])
-    assert result.exit_code == 0
-    assert "up" in result.output
-    assert "new" in result.output
-    assert "msg" in result.output
-    assert "list" in result.output
-    assert "down" in result.output
-
-
-def test_config_help(capture_output):
-    """Test config subgroup help."""
-    result = capture_output(["config", "--help"])
-    assert result.exit_code == 0
-    assert "init" in result.output
-    assert "list" in result.output
-
-
-def test_single_help(capture_output):
-    """Test single subgroup help."""
-    result = capture_output(["single", "--help"])
-    assert result.exit_code == 0
-    assert "run" in result.output
-
-
-def test_init_command(capture_output, tmp_path, monkeypatch, caplog):
-    """Test init command to create default .grkrc file."""
-    monkeypatch.chdir(tmp_path)
-    with caplog.at_level("INFO"):
-        result = capture_output(["config", "init"])
-    assert result.exit_code == 0
-    assert Path(".grkrc").exists()
-    assert "Default .grkrc with profiles created successfully." in caplog.text
-
-
-def test_init_command_with_existing_config(
-    capture_output, tmp_path, monkeypatch, caplog
-):
-    """Test init command with existing .grkrc file."""
-    monkeypatch.chdir(tmp_path)
-    Path(".grkrc").write_text("profiles:\n  default:\n    model: grok-3\n")
-    with caplog.at_level("INFO"):
-        result = capture_output(["config", "init"])
-    assert result.exit_code == 0
-    assert "Profile 'default' differs from default" in caplog.text
-
-
-def test_run_command_no_api_key(capture_output, tmp_path, monkeypatch):
-    """Test run command without API key set."""
-    monkeypatch.chdir(tmp_path)
-    Path("input.txt").write_text("Test content")
-    monkeypatch.delenv("XAI_API_KEY", raising=False)
-    result = capture_output(["single", "run", "input.txt", "Test prompt"])
-    assert result.exit_code != 0
-    assert "API key is required" in result.output
-
-
-def test_run_command_file_not_found(capture_output, tmp_path, monkeypatch):
-    """Test run command with non-existent input file."""
-    monkeypatch.chdir(tmp_path)
-    result = capture_output(
-        ["single", "run", "nonexistent.txt", "Test prompt"],
-        env={"XAI_API_KEY": "dummy_key"},
-    )
-    assert result.exit_code != 0
-    assert "Invalid file" in result.output
-
-
-@pytest.mark.parametrize(
-    "profile",
-    ["default", "py", "doc"],
-)
-def test_run_command_with_profile(
-    capture_output, tmp_path, monkeypatch, profile, mocker, caplog
-):
-    """Test run command with different profiles."""
-    monkeypatch.chdir(tmp_path)
-    Path("input.txt").write_text("Test content")
-
-    # Initialize config to have profiles
-    capture_output(["config", "init"])
-
-    # Set up mock for API call
-    mock_client = mocker.Mock()
-    mock_client.chat = mocker.Mock()
-    mock_chat = mocker.Mock()
-    mock_sample = mocker.Mock()
-    mock_sample.content = f"Response for {profile}"
-    mock_chat.sample.return_value = mock_sample
-    mock_client.chat.create.return_value = mock_chat
-    mocker.patch("grk.core.api.Client", return_value=mock_client)
-
-    cmd = ["single", "run", "input.txt", "Test prompt"]
-    if profile != "default":
-        cmd.extend(["--profile", profile])
-    with caplog.at_level("INFO"):
-        result = capture_output(cmd, env={"XAI_API_KEY": "dummy_key"})
-    assert result.exit_code == 0
-    assert "Running grk with the following settings:" in result.output
-
-    # Check if API was called with correct model based on profile
-    expected_models = {
-        "default": "grok-code-fast-1",
-        "py": "grok-code-fast-1",
-        "doc": "grok-4-1-fast",
-    }
-    called_model = mock_client.chat.create.call_args.kwargs["model"]
-    assert called_model == expected_models.get(profile, "grok-4-fast")
 
 
 def test_session_up_command(capture_output, tmp_path, monkeypatch, mocker, caplog):
@@ -364,40 +243,11 @@ def test_session_list_no_session(capture_output, tmp_path, monkeypatch):
     assert "No session running" in result.output
 
 
-@pytest.mark.parametrize(
-    "raw_response, expected_cleaned, expected_message",
-    [
-        ('[{"path": "file.txt"}]', '{"files": [{"path": "file.txt"}]}', ""),
-        (
-            'Here\'s the update: ```json\n[{"path": "file.txt"}]\n```',
-            '{"files": [{"path": "file.txt"}]}',
-            "Here's the update:",
-        ),
-        (
-            'Explanatory text {"files": [{"path": "file.txt"}]}',
-            '{"files": [{"path": "file.txt"}]}',
-            "Explanatory text",
-        ),
-        ("Invalid response without JSON", "", "Invalid response without JSON"),
-    ],
-)
-def test_postprocess_response(raw_response, expected_cleaned, expected_message):
-    """Test postprocess_response function."""
-    from grk.core.session import postprocess_response
-
-    cleaned, message = postprocess_response(raw_response)
-    assert cleaned.replace("\n", "") == expected_cleaned.replace(
-        "\n", ""
-    )  # Ignore formatting
-    assert message == expected_message
-
-
 def test_session_up_cleanup_stale_pid(
     capture_output, tmp_path, monkeypatch, mocker, caplog
 ):
     """Test session up command with stale PID cleanup."""
     monkeypatch.chdir(tmp_path)
-    Path(".grk_session.pid").write_text("99999")  # Non-existing pid
     Path("initial.json").write_text('{"files": []}')
     mock_popen = mocker.patch("subprocess.Popen")
     mock_popen.return_value.pid = 12345
@@ -407,15 +257,3 @@ def test_session_up_cleanup_stale_pid(
         )
     assert "Cleaning up stale PID file" in caplog.text
     assert result.exit_code == 0
-
-
-def test_init_command_with_existing_brief(
-    capture_output, tmp_path, monkeypatch, caplog
-):
-    """Test init command with existing brief configuration."""
-    monkeypatch.chdir(tmp_path)
-    Path(".grkrc").write_text("brief:\n  file: old_brief.txt\n  role: user\n")
-    with caplog.at_level("INFO"):
-        result = capture_output(["config", "init"])
-    assert result.exit_code == 0
-    assert "Brief differs from default, saved old as 'brief_old'." in caplog.text

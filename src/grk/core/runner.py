@@ -1,7 +1,7 @@
 """Core logic for running Grok LLM interactions."""
 
 import json
-from typing import List, Union
+from typing import List, Union, Optional
 from pathlib import Path
 from .api import call_grok
 import time
@@ -23,17 +23,33 @@ from xai_sdk.chat import assistant, system, user
 logger = setup_logging()
 
 
+# def run_grok(
+#     file: str,
+#     message: str,
+#     config: ProfileConfig,
+#     api_key: str,
+#     profile: str = "default",
+# ):
+#     """Execute the Grok LLM run logic with given inputs and config."""
+#     model_used = config.model or "grok-4-fast"
+#     role_from_config = config.role or "you are an expert engineer and developer"
+#     output_file = config.output or "output.json"
+#     prompt_prepend = config.prompt_prepend or ""
+#     temperature = config.temperature or 0
+
+
 def run_grok(
     file: str,
     message: str,
     config: ProfileConfig,
     api_key: str,
     profile: str = "default",
+    output_file: Optional[str] = None,
 ):
     """Execute the Grok LLM run logic with given inputs and config."""
     model_used = config.model or "grok-4-fast"
     role_from_config = config.role or "you are an expert engineer and developer"
-    output_file = config.output or "output.json"
+    output_file = output_file or config.output or "output.json"
     prompt_prepend = config.prompt_prepend or ""
     temperature = config.temperature or 0
 
