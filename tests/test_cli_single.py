@@ -6,6 +6,7 @@ from io import StringIO
 from grk.cli.cli import main
 import sys
 import os
+import grk.core.runner
 
 
 @pytest.fixture
@@ -79,7 +80,9 @@ def test_run_command_with_profile(
     capture_output(["config", "init"])
 
     # Set up mock for API call
-    mock_call_grok = mocker.patch("grk.core.runner.call_grok", return_value=f"Response for {profile}")
+    mock_call_grok = mocker.patch.object(
+        grk.core.runner, "call_grok", return_value=f"Response for {profile}"
+    )
 
     cmd = ["single", "run", "input.txt", "Test prompt"]
     if profile != "default":
@@ -90,8 +93,8 @@ def test_run_command_with_profile(
 
     # Check if API was called with correct model based on profile
     expected_models = {
-        "default": "grok-code-fast-1",
-        "py": "grok-code-fast-1",
+        "default": "grok-4-1-fast-non-reasoning",
+        "py": "grok-4-1-fast-reasoning",
         "doc": "grok-4-1-fast",
     }
     called_model = mock_call_grok.call_args[0][1]

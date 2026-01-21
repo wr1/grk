@@ -17,7 +17,7 @@ def run_func(file: str, message: str, profile: str = "default", output: str = No
     if not api_key:
         raise GrkException("API key is required via XAI_API_KEY environment variable.")
     config = load_config(profile)
-    run_grok(file, message, config, api_key, profile, output=output)
+    run_grok(file, message, config, api_key, profile, output_file=output)
 
 
 single_grp = group(

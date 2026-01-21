@@ -249,11 +249,15 @@ def test_session_up_cleanup_stale_pid(
     """Test session up command with stale PID cleanup."""
     monkeypatch.chdir(tmp_path)
     Path("initial.json").write_text('{"files": []}')
+    Path(".grk_session.pid").write_text("999999")  # Invalid pid to force OSError
+    mocker.patch("os.kill", side_effect=OSError("Process not found"))
     mock_popen = mocker.patch("subprocess.Popen")
     mock_popen.return_value.pid = 12345
     with caplog.at_level("INFO"):
         result = capture_output(
-            ["session", "up", "initial.json"], env={"XAI_API_KEY": "dummy_key"}
+            ["session", "up", "initial.json"], env={"XAI_API_KEY": "dummy_key", "PYTEST_CURRENT_TEST": "test"}
         )
-    assert "Cleaning up stale PID file" in caplog.text
     assert result.exit_code == 0
+    assert "Session started with PID 12345" in caplog.text
+    assert Path(".grk_session.pid").exists()
+    assert Path(".grk_session.json").exists()

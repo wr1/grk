@@ -23,21 +23,6 @@ from xai_sdk.chat import assistant, system, user
 logger = setup_logging()
 
 
-# def run_grok(
-#     file: str,
-#     message: str,
-#     config: ProfileConfig,
-#     api_key: str,
-#     profile: str = "default",
-# ):
-#     """Execute the Grok LLM run logic with given inputs and config."""
-#     model_used = config.model or "grok-4-fast"
-#     role_from_config = config.role or "you are an expert engineer and developer"
-#     output_file = config.output or "output.json"
-#     prompt_prepend = config.prompt_prepend or ""
-#     temperature = config.temperature or 0
-
-
 def run_grok(
     file: str,
     message: str,
@@ -119,13 +104,13 @@ def run_grok(
         else:
             messages.append(user(file_content))
             messages.append(user(full_prompt))
-        is_cfold = False
-        input_data = None
+        is_cfold_input = is_cfold
+        input_data_for_analysis = input_data if is_cfold else None
     except json.JSONDecodeError:
         messages.append(user(file_content))
         messages.append(user(full_prompt))
-        is_cfold = False
-        input_data = None
+        is_cfold_input = False
+        input_data_for_analysis = None
 
     console = Console()
     console.print("[bold green]Running grk[/bold green] with the following settings:")
@@ -170,7 +155,7 @@ def run_grok(
 
     try:
         # Always write the response, format if valid JSON for cfold
-        if is_cfold:
+        if is_cfold_input:
             response_to_parse = response.strip()
             if response_to_parse.startswith("```json") and response_to_parse.endswith(
                 "```"
@@ -190,14 +175,14 @@ def run_grok(
                 with Path(output_file).open("w") as f:
                     json.dump(output_data, f, indent=2)
                 # Analyze filtered output
-                analyze_changes(input_data, json.dumps(output_data), console)
+                analyze_changes(input_data_for_analysis, json.dumps(output_data), console)
             except json.JSONDecodeError:
                 console.print(
                     "[yellow]Warning: Response is not valid JSON, writing as text.[/yellow]"
                 )
                 Path(output_file).write_text(response)
-                if input_data:
-                    analyze_changes(input_data, response, console)
+                if input_data_for_analysis:
+                    analyze_changes(input_data_for_analysis, response, console)
         else:
             Path(output_file).write_text(response)
         console.print(f"[bold green]Output written to:[/bold green] '{output_file}'")

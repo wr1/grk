@@ -55,6 +55,7 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
         chat = None
 
         def init_chat(instructions, codebase):
+            """Initialize chat with instructions and codebase."""
             nonlocal chat, messages
             chat = client.chat.create(model=model_used, temperature=temperature)
             messages.clear()
@@ -245,16 +246,40 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                     msg = user(full_prompt)
                     messages.append(msg)
                     chat.append(msg)
+
                     start_time = time.time()
-                    response = chat.sample()
+
+                    full_content = ""
+                    final_response = None
+
+                    for accumulated_response, chunk in chat.stream():
+                        if chunk.content:  # sometimes chunks can be empty / tool-only
+                            full_content += chunk.content
+                            # Optional: print live to daemon log if you want visibility
+                            # print(chunk.content, end="", file=sys.stderr, flush=True)
+
+                        # You can also inspect chunk.tool_calls here if relevant later
+
+                        final_response = (
+                            accumulated_response  # update reference each iteration
+                        )
+
                     end_time = time.time()
                     thinking_time = end_time - start_time
-                    chat.append(response)
-                    messages.append(assistant(response.content))
 
-                    # Postprocess response
+                    # Now final_response is the complete object
+                    if final_response is None:
+                        raise GrkException(
+                            "Streaming finished without producing a final response"
+                        )
+
+                    # Append the final assistant message (use final_response.content)
+                    chat.append(final_response)
+                    messages.append(assistant(final_response.content))
+
+                    # Postprocess using the full accumulated content
                     cleaned_response, extracted_message = postprocess_response(
-                        response.content
+                        full_content
                     )
 
                     # Prepare for analysis (use cleaned_response for summary and caching)

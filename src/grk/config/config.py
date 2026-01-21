@@ -10,18 +10,18 @@ logger = setup_logging()
 
 DEFAULT_PROFILES = {
     "default": {
-        "model": "grok-code-fast-1",
+        "model": "grok-4-1-fast-non-reasoning",
         "role": "you are an expert engineer and developer",
         "output": "output.json",
         "prompt_prepend": "",
         "temperature": 0.05,
     },
     "py": {
-        "model": "grok-code-fast-1",
+        "model": "grok-4-1-fast-reasoning",
         "role": "you are an expert python programmer, writing clean code",
         "output": "output.json",
         "prompt_prepend": "",
-        "temperature": 0,
+        "temperature": 0.05,
     },
     "doc": {
         "model": "grok-4-1-fast",
@@ -55,7 +55,7 @@ DEFAULT_PROFILES = {
 
 DEFAULT_BRIEF = {"file": "design_brief.typ", "role": "assistant"}
 
-DEFAULT_BRIEF_CONTENT = '= Design Brief\n\nThis is a template for your project design brief. Edit as needed.\n'
+DEFAULT_BRIEF_CONTENT = "= Design Brief\n\nThis is a template for your project design brief. Edit as needed.\n"
 
 
 def load_config(profile: str = "default") -> ProfileConfig:
