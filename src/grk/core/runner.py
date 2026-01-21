@@ -3,6 +3,7 @@
 import json
 from typing import List, Union, Optional
 from pathlib import Path
+import asyncio
 from .api import call_grok
 import time
 from rich.console import Console
@@ -23,7 +24,7 @@ from xai_sdk.chat import assistant, system, user
 logger = setup_logging()
 
 
-def run_grok(
+async def run_grok(
     file: str,
     message: str,
     config: ProfileConfig,
@@ -128,26 +129,15 @@ def run_grok(
     console.print("[bold green]Calling Grok API...[/bold green]")
     start_time = time.time()
 
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        future = executor.submit(
-            call_grok,
-            messages,
-            model_used,
-            api_key,
-            temperature,
+    if console.is_terminal:
+        spinner = Spinner(
+            "dots",
+            f"[bold yellow] Waiting for {model_used} response...[/bold yellow]",
         )
-        if console.is_terminal:
-            spinner = Spinner(
-                "dots",
-                f"[bold yellow] Waiting for {model_used} response...[/bold yellow]",
-            )
-            with Live(spinner, console=console, refresh_per_second=15, transient=True):
-                while not future.done():
-                    time.sleep(0.1)
-        else:
-            while not future.done():
-                time.sleep(0.1)
-        response = future.result()
+        with Live(spinner, console=console, refresh_per_second=15, transient=True):
+            response = await call_grok(messages, model_used, api_key, temperature)
+    else:
+        response = await call_grok(messages, model_used, api_key, temperature)
 
     end_time = time.time()
     wait_time = end_time - start_time

@@ -503,7 +503,7 @@ def send_request(client: socket.socket, request: dict):
     client.send(length_bytes + request_json.encode())
 
 
-def recv_response(client: socket.socket, model_used: str = None, timeout: float = 30.0) -> str:
+def recv_response(client: socket.socket, model_used: str = None, timeout: float = 300.0) -> str:
     """Receive response with length prefix, with spinner and streaming fix.
 
     FIXED: Now properly handles streaming by accumulating chunks until full length received.
@@ -529,10 +529,10 @@ def recv_response(client: socket.socket, model_used: str = None, timeout: float 
         else:
             while not future_length.done() and (time.time() - start_time) < timeout:
                 time.sleep(0.1)
-        
+
         if (time.time() - start_time) >= timeout:
             raise GrkException(f"Response timeout after {timeout}s")
-        
+
         length_bytes = future_length.result()
         length = int.from_bytes(length_bytes, "big")
 
@@ -541,19 +541,19 @@ def recv_response(client: socket.socket, model_used: str = None, timeout: float 
         while len(data_bytes) < length:
             remaining = length - len(data_bytes)
             chunk_size = min(4096, remaining)
-            
+
             # Use select to check if data available (non-blocking)
             ready, _, _ = select.select([client], [], [], 1.0)
             if not ready:
                 if (time.time() - start_time) >= timeout:
                     raise GrkException(f"Response timeout after {timeout}s")
                 continue
-            
+
             chunk = client.recv(chunk_size)
             if not chunk:
                 raise GrkException("Daemon closed connection prematurely")
             data_bytes += chunk
-            
+
             # Update spinner for terminal
             if console.is_terminal:
                 with Live(spinner, console=console, refresh_per_second=15, transient=True):

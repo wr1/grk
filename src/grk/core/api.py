@@ -1,29 +1,33 @@
 """API interaction with Grok LLM."""
 
+import asyncio
 from typing import List, Union
 
-from xai_sdk import Client
+from xai_sdk import AsyncClient
 from xai_sdk.chat import assistant, system, user
 from ..utils.utils import GrkException
 
 
-def call_grok(
+async def call_grok(
     messages: List[Union[system, user, assistant]],
     model: str,
     api_key: str,
     temperature: float = 0,
 ) -> str:
-    """Call Grok API with a list of messages using recommended SDK pattern."""
+    """Call Grok API with streaming, accumulating full response per xai-sdk patterns."""
     try:
-        client = Client(api_key=api_key)
+        client = AsyncClient(api_key=api_key)
         chat = client.chat.create(
             model=model,
             temperature=temperature,
-            messages=messages,  # Pass messages directly to create
+            messages=messages,
         )
-        response = chat.sample()
-        if not isinstance(response.content, str):
-            raise ValueError("API response is not a string")
-        return response.content
+        full_content = ""
+        async for response, chunk in chat.stream():
+            if chunk.content:
+                full_content += chunk.content
+        if not full_content:
+            raise ValueError("No content received from API")
+        return full_content
     except Exception as e:
         raise GrkException(f"API request failed: {str(e)}")
