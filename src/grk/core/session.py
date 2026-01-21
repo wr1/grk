@@ -273,9 +273,9 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                             "Streaming finished without producing a final response"
                         )
 
-                    # Append the final assistant message (use final_response.content)
+                    # Append the final assistant message (use full_content for robustness)
                     chat.append(final_response)
-                    messages.append(assistant(final_response.content))
+                    messages.append(assistant(full_content))
 
                     # Postprocess using the full accumulated content
                     cleaned_response, extracted_message = postprocess_response(
@@ -309,8 +309,8 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                             save_cached_codebase(cached_codebase)
                     except json.JSONDecodeError:
                         Path(output).write_text(
-                            response.content
-                        )  # Fallback to raw if still invalid
+                            full_content  # Use full_content for fallback
+                        )
                         summary = (
                             "No valid JSON detected; raw response saved. "
                             + get_change_summary(input_for_analysis, cleaned_response)

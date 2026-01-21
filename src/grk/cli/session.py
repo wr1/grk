@@ -503,38 +503,62 @@ def send_request(client: socket.socket, request: dict):
     client.send(length_bytes + request_json.encode())
 
 
-def recv_response(client: socket.socket, model_used: str = None) -> str:
-    """Receive response with length prefix, with spinner."""
+def recv_response(client: socket.socket, model_used: str = None, timeout: float = 30.0) -> str:
+    """Receive response with length prefix, with spinner and streaming fix.
+
+    FIXED: Now properly handles streaming by accumulating chunks until full length received.
+    Adds timeout to prevent indefinite hangs.
+    """
+    import select
     console = Console()
     wait_text = (
         f"[bold yellow] Waiting for {model_used} response...[/bold yellow]"
         if model_used
         else "[bold yellow] Waiting for response...[/bold yellow]"
     )
+    start_time = time.time()
+
     with ThreadPoolExecutor(max_workers=1) as executor:
-        # First, receive length
+        # First, receive length prefix (4 bytes)
         future_length = executor.submit(recv_full, client, 4)
         spinner = Spinner("dots", wait_text)
         if console.is_terminal:
             with Live(spinner, console=console, refresh_per_second=15, transient=True):
-                while not future_length.done():
+                while not future_length.done() and (time.time() - start_time) < timeout:
                     time.sleep(0.1)
         else:
-            while not future_length.done():
+            while not future_length.done() and (time.time() - start_time) < timeout:
                 time.sleep(0.1)
+        
+        if (time.time() - start_time) >= timeout:
+            raise GrkException(f"Response timeout after {timeout}s")
+        
         length_bytes = future_length.result()
         length = int.from_bytes(length_bytes, "big")
 
-        # Then, receive data
-        future_data = executor.submit(recv_full, client, length)
-        if console.is_terminal:
-            with Live(spinner, console=console, refresh_per_second=15, transient=True):
-                while not future_data.done():
-                    time.sleep(0.1)
-        else:
-            while not future_data.done():
-                time.sleep(0.1)
-        data_bytes = future_data.result()
+        # FIXED: Accumulate data in chunks until we have exactly 'length' bytes
+        data_bytes = b""
+        while len(data_bytes) < length:
+            remaining = length - len(data_bytes)
+            chunk_size = min(4096, remaining)
+            
+            # Use select to check if data available (non-blocking)
+            ready, _, _ = select.select([client], [], [], 1.0)
+            if not ready:
+                if (time.time() - start_time) >= timeout:
+                    raise GrkException(f"Response timeout after {timeout}s")
+                continue
+            
+            chunk = client.recv(chunk_size)
+            if not chunk:
+                raise GrkException("Daemon closed connection prematurely")
+            data_bytes += chunk
+            
+            # Update spinner for terminal
+            if console.is_terminal:
+                with Live(spinner, console=console, refresh_per_second=15, transient=True):
+                    pass
+
         return data_bytes.decode("utf-8")
 
 
