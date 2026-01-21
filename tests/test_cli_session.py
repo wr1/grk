@@ -106,6 +106,7 @@ def test_session_msg_postprocessing(capture_output, tmp_path, monkeypatch, mocke
         data_bytes,
     ]
     mocker.patch("socket.socket", return_value=mock_socket)
+    mocker.patch("select.select", return_value=([mock_socket], [], []))
 
     result = capture_output(["session", "msg", "Test prompt", "-o", "__temp.json"])
     assert result.exit_code == 0
@@ -155,6 +156,7 @@ def test_session_new_command(capture_output, tmp_path, monkeypatch, mocker):
 
     mock_socket.recv.side_effect = [length_bytes, data_bytes]
     mocker.patch("socket.socket", return_value=mock_socket)
+    mocker.patch("select.select", return_value=([mock_socket], [], []))
 
     result = capture_output(["session", "new", "new.json"])
     assert result.exit_code == 0
@@ -187,6 +189,7 @@ def test_session_down_command(capture_output, tmp_path, monkeypatch, mocker):
 
     mock_socket.recv.side_effect = [length_bytes, data_bytes]
     mocker.patch("socket.socket", return_value=mock_socket)
+    mocker.patch("select.select", return_value=([mock_socket], [], []))
     mocker.patch("os.kill")
 
     result = capture_output(["session", "down"])
@@ -227,6 +230,7 @@ def test_session_list_command(capture_output, tmp_path, monkeypatch, mocker):
 
     mock_socket.recv.side_effect = [length_bytes, data_bytes]
     mocker.patch("socket.socket", return_value=mock_socket)
+    mocker.patch("select.select", return_value=([mock_socket], [], []))
 
     result = capture_output(["session", "list"])
     assert result.exit_code == 0

@@ -24,7 +24,7 @@ from xai_sdk.chat import assistant, system, user
 logger = setup_logging()
 
 
-async def run_grok(
+def run_grok(
     file: str,
     message: str,
     config: ProfileConfig,
@@ -135,9 +135,9 @@ async def run_grok(
             f"[bold yellow] Waiting for {model_used} response...[/bold yellow]",
         )
         with Live(spinner, console=console, refresh_per_second=15, transient=True):
-            response = await call_grok(messages, model_used, api_key, temperature)
+            response = asyncio.run(call_grok(messages, model_used, api_key, temperature))
     else:
-        response = await call_grok(messages, model_used, api_key, temperature)
+        response = asyncio.run(call_grok(messages, model_used, api_key, temperature))
 
     end_time = time.time()
     wait_time = end_time - start_time

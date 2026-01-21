@@ -25,6 +25,8 @@ async def call_grok(
         full_content = ""
         async for response, chunk in chat.stream():
             if chunk.content:
+                if not isinstance(chunk.content, str):
+                    raise GrkException("API response is not a string")
                 full_content += chunk.content
         if not full_content:
             raise ValueError("No content received from API")
