@@ -18,6 +18,7 @@ dependencies = [
     "pytest",
     "pytest-mock",
     "pytest-cov",
+    "pytest-asyncio",
     "opentelemetry-sdk>=1.15.0,<1.20.0",
     "numpy",
 ]
