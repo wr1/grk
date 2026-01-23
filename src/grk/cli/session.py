@@ -295,6 +295,17 @@ def session_list_func():
         profile = "unknown"
         initial_file = "unknown"
 
+    config = load_config(profile)
+    console.print("[bold green]Session Details:[/bold green]")
+    console.print(f" Profile: [cyan]{profile}[/cyan]")
+    console.print(f" Model: [yellow]{config.model or 'grok-4-fast'}[/yellow]")
+    console.print(
+        f" Role: [cyan]{config.role or 'you are an expert engineer and developer'}[/cyan]"
+    )
+    console.print(f" Temperature: [red]{config.temperature or 0}[/red]")
+    console.print(f" Prompt prepend: [cyan]{config.prompt_prepend or ''}[/cyan]")
+    console.print(f" Initial file: [cyan]{initial_file}[/cyan]")
+
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         client.connect(("127.0.0.1", port))
@@ -307,9 +318,6 @@ def session_list_func():
         if "error" in data:
             console.print(f"[bold red]Error from session:[/bold red] {data['error']}")
             return
-        console.print("[bold green]Session Details:[/bold green]")
-        console.print(f" Profile: [cyan]{profile}[/cyan]")
-        console.print(f" Initial file: [cyan]{initial_file}[/cyan]")
         console.print("[bold green]Current Files:[/bold green]")
         for f in data.get("files", []):
             console.print(f" - {f}")
@@ -503,13 +511,16 @@ def send_request(client: socket.socket, request: dict):
     client.send(length_bytes + request_json.encode())
 
 
-def recv_response(client: socket.socket, model_used: str = None, timeout: float = 300.0) -> str:
+def recv_response(
+    client: socket.socket, model_used: str = None, timeout: float = 300.0
+) -> str:
     """Receive response with length prefix, with spinner and streaming fix.
 
     FIXED: Now properly handles streaming by accumulating chunks until full length received.
     Adds timeout to prevent indefinite hangs.
     """
     import select
+
     console = Console()
     wait_text = (
         f"[bold yellow] Waiting for {model_used} response...[/bold yellow]"
@@ -556,7 +567,9 @@ def recv_response(client: socket.socket, model_used: str = None, timeout: float 
 
             # Update spinner for terminal
             if console.is_terminal:
-                with Live(spinner, console=console, refresh_per_second=15, transient=True):
+                with Live(
+                    spinner, console=console, refresh_per_second=15, transient=True
+                ):
                     pass
 
         return data_bytes.decode("utf-8")

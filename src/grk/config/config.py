@@ -10,8 +10,15 @@ logger = setup_logging()
 
 DEFAULT_PROFILES = {
     "default": {
-        "model": "grok-4-1-fast-non-reasoning",
+        "model": "grok-code-fast-1",
         "role": "you are an expert engineer and developer",
+        "output": "output.json",
+        "prompt_prepend": "",
+        "temperature": 0.05,
+    },
+    "py1": {
+        "model": "grok-4-1-fast-non-reasoning",
+        "role": "you are an expert python programmer, writing clean code",
         "output": "output.json",
         "prompt_prepend": "",
         "temperature": 0.05,

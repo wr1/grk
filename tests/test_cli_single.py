@@ -93,7 +93,7 @@ def test_run_command_with_profile(
 
     # Check if API was called with correct model based on profile
     expected_models = {
-        "default": "grok-4-1-fast-non-reasoning",
+        "default": "grok-code-fast-1",
         "py": "grok-4-1-fast-reasoning",
         "doc": "grok-4-1-fast",
     }
