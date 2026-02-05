@@ -21,6 +21,7 @@ async def call_grok(
             model=model,
             temperature=temperature,
             messages=messages,
+            stream=False,
         )
         full_content = ""
         async for response, chunk in chat.stream():
