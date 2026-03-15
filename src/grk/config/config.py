@@ -16,39 +16,53 @@ DEFAULT_PROFILES = {
         "prompt_prepend": "",
         "temperature": 0.05,
     },
-    "py": {
-        "model": "grok-code-fast-1",
+    "py1": {
+        "model": "grok-4-1-fast-non-reasoning",
         "role": "you are an expert python programmer, writing clean code",
         "output": "output.json",
         "prompt_prepend": "",
-        "temperature": 0,
+        "temperature": 0.05,
+    },
+    "py": {
+        "model": "grok-4-1-fast-reasoning",
+        "role": "you are an expert python programmer, writing clean code",
+        "output": "output.json",
+        "prompt_prepend": "",
+        "temperature": 0.05,
     },
     "doc": {
-        "model": "grok-4-fast",
+        "model": "grok-4-1-fast",
         "role": "you are an expert in writing documentation",
         "output": "output.json",
         "prompt_prepend": "",
         "temperature": 0.7,
     },
     "law": {
-        "model": "grok-4-fast",
+        "model": "grok-4-1-fast",
         "role": "you are an expert lawyer, providing legal advice",
         "output": "output.json",
         "prompt_prepend": "write concise legal argumentation, prefer typst syntax",
         "temperature": 0.35,
     },
     "psy": {
-        "model": "grok-4-fast",
+        "model": "grok-4-1-fast",
         "role": "you are an expert professor in psychology",
         "output": "output.json",
         "prompt_prepend": "",
         "temperature": 0.3,
     },
+    "plan": {
+        "model": "grok-4-1-fast",
+        "role": "you are an expert project planner and strategist",
+        "output": "output.json",
+        "prompt_prepend": "",
+        "temperature": 0.7,
+    },
 }
 
 DEFAULT_BRIEF = {"file": "design_brief.typ", "role": "assistant"}
 
-DEFAULT_BRIEF_CONTENT = '#set page(margin: 1in)\n#set text(font: "New Computer Modern", size: 12pt)\n\n= Design Brief\n\nThis is a template for your project design brief. Edit as needed.\n'
+DEFAULT_BRIEF_CONTENT = "= Design Brief\n\nThis is a template for your project design brief. Edit as needed.\n"
 
 
 def load_config(profile: str = "default") -> ProfileConfig:

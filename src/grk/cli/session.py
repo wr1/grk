@@ -295,6 +295,17 @@ def session_list_func():
         profile = "unknown"
         initial_file = "unknown"
 
+    config = load_config(profile)
+    console.print("[bold green]Session Details:[/bold green]")
+    console.print(f" Profile: [cyan]{profile}[/cyan]")
+    console.print(f" Model: [yellow]{config.model or 'grok-4-fast'}[/yellow]")
+    console.print(
+        f" Role: [cyan]{config.role or 'you are an expert engineer and developer'}[/cyan]"
+    )
+    console.print(f" Temperature: [red]{config.temperature or 0}[/red]")
+    console.print(f" Prompt prepend: [cyan]{config.prompt_prepend or ''}[/cyan]")
+    console.print(f" Initial file: [cyan]{initial_file}[/cyan]")
+
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         client.connect(("127.0.0.1", port))
@@ -307,9 +318,6 @@ def session_list_func():
         if "error" in data:
             console.print(f"[bold red]Error from session:[/bold red] {data['error']}")
             return
-        console.print("[bold green]Session Details:[/bold green]")
-        console.print(f" Profile: [cyan]{profile}[/cyan]")
-        console.print(f" Initial file: [cyan]{initial_file}[/cyan]")
         console.print("[bold green]Current Files:[/bold green]")
         for f in data.get("files", []):
             console.print(f" - {f}")
@@ -503,38 +511,67 @@ def send_request(client: socket.socket, request: dict):
     client.send(length_bytes + request_json.encode())
 
 
-def recv_response(client: socket.socket, model_used: str = None) -> str:
-    """Receive response with length prefix, with spinner."""
+def recv_response(
+    client: socket.socket, model_used: str = None, timeout: float = 300.0
+) -> str:
+    """Receive response with length prefix, with spinner and streaming fix.
+
+    FIXED: Now properly handles streaming by accumulating chunks until full length received.
+    Adds timeout to prevent indefinite hangs.
+    """
+    import select
+
     console = Console()
     wait_text = (
         f"[bold yellow] Waiting for {model_used} response...[/bold yellow]"
         if model_used
         else "[bold yellow] Waiting for response...[/bold yellow]"
     )
+    start_time = time.time()
+
     with ThreadPoolExecutor(max_workers=1) as executor:
-        # First, receive length
+        # First, receive length prefix (4 bytes)
         future_length = executor.submit(recv_full, client, 4)
         spinner = Spinner("dots", wait_text)
         if console.is_terminal:
             with Live(spinner, console=console, refresh_per_second=15, transient=True):
-                while not future_length.done():
+                while not future_length.done() and (time.time() - start_time) < timeout:
                     time.sleep(0.1)
         else:
-            while not future_length.done():
+            while not future_length.done() and (time.time() - start_time) < timeout:
                 time.sleep(0.1)
+
+        if (time.time() - start_time) >= timeout:
+            raise GrkException(f"Response timeout after {timeout}s")
+
         length_bytes = future_length.result()
         length = int.from_bytes(length_bytes, "big")
 
-        # Then, receive data
-        future_data = executor.submit(recv_full, client, length)
-        if console.is_terminal:
-            with Live(spinner, console=console, refresh_per_second=15, transient=True):
-                while not future_data.done():
-                    time.sleep(0.1)
-        else:
-            while not future_data.done():
-                time.sleep(0.1)
-        data_bytes = future_data.result()
+        # FIXED: Accumulate data in chunks until we have exactly 'length' bytes
+        data_bytes = b""
+        while len(data_bytes) < length:
+            remaining = length - len(data_bytes)
+            chunk_size = min(4096, remaining)
+
+            # Use select to check if data available (non-blocking)
+            ready, _, _ = select.select([client], [], [], 1.0)
+            if not ready:
+                if (time.time() - start_time) >= timeout:
+                    raise GrkException(f"Response timeout after {timeout}s")
+                continue
+
+            chunk = client.recv(chunk_size)
+            if not chunk:
+                raise GrkException("Daemon closed connection prematurely")
+            data_bytes += chunk
+
+            # Update spinner for terminal
+            if console.is_terminal:
+                with Live(
+                    spinner, console=console, refresh_per_second=15, transient=True
+                ):
+                    pass
+
         return data_bytes.decode("utf-8")
 
 

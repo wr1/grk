@@ -55,6 +55,7 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
         chat = None
 
         def init_chat(instructions, codebase):
+            """Initialize chat with instructions and codebase."""
             nonlocal chat, messages
             chat = client.chat.create(model=model_used, temperature=temperature)
             messages.clear()
@@ -179,7 +180,8 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                                         tofile=f"{path} (disk)",
                                     )
                                 )
-                                diff_str = "".join(diff)
+                                diff_lines = [line.rstrip("\n") for line in diff]
+                                diff_str = "\n".join("  " + line for line in diff_lines)
                                 changed_details.append(f"{path}: changed\n{diff_str}")
                                 f["content"] = new_content
                                 synced_count += 1
@@ -244,16 +246,40 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                     msg = user(full_prompt)
                     messages.append(msg)
                     chat.append(msg)
+
                     start_time = time.time()
-                    response = chat.sample()
+
+                    full_content = ""
+                    final_response = None
+
+                    for accumulated_response, chunk in chat.stream():
+                        if chunk.content:  # sometimes chunks can be empty / tool-only
+                            full_content += chunk.content
+                            # Optional: print live to daemon log if you want visibility
+                            # print(chunk.content, end="", file=sys.stderr, flush=True)
+
+                        # You can also inspect chunk.tool_calls here if relevant later
+
+                        final_response = (
+                            accumulated_response  # update reference each iteration
+                        )
+
                     end_time = time.time()
                     thinking_time = end_time - start_time
-                    chat.append(response)
-                    messages.append(assistant(response.content))
 
-                    # Postprocess response
+                    # Now final_response is the complete object
+                    if final_response is None:
+                        raise GrkException(
+                            "Streaming finished without producing a final response"
+                        )
+
+                    # Append the final assistant message (use full_content for robustness)
+                    chat.append(final_response)
+                    messages.append(assistant(full_content))
+
+                    # Postprocess using the full accumulated content
                     cleaned_response, extracted_message = postprocess_response(
-                        response.content
+                        full_content
                     )
 
                     # Prepare for analysis (use cleaned_response for summary and caching)
@@ -283,8 +309,8 @@ def daemon_process(initial_file: str, config: ProfileConfig, api_key: str):
                             save_cached_codebase(cached_codebase)
                     except json.JSONDecodeError:
                         Path(output).write_text(
-                            response.content
-                        )  # Fallback to raw if still invalid
+                            full_content  # Use full_content for fallback
+                        )
                         summary = (
                             "No valid JSON detected; raw response saved. "
                             + get_change_summary(input_for_analysis, cleaned_response)
@@ -337,50 +363,104 @@ def send_response(conn: socket.socket, resp: Union[str, dict]):
 
 def postprocess_response(response: str) -> Tuple[str, str]:
     """Postprocess the response to extract/clean JSON and any message."""
+    import re  # Ensure re is imported if not already (add if missing)
     original_response = response.strip()
     extracted_message = ""
 
-    # Check for markdown code block
+    # Check if entire response starts/ends with json block (no extraction needed)
     if original_response.startswith("```json") and original_response.endswith("```"):
-        response = original_response[7:-3].strip()
-    elif "```json" in original_response:
-        # Extract the block if embedded
-        match = re.search(r"```json\s*(.*?)\s*```", original_response, re.DOTALL)
-        if match:
-            extracted_message = original_response.replace(match.group(0), "").strip()
-            response = match.group(1).strip()
-        else:
-            response = original_response
-    else:
-        response = original_response
+        candidate = original_response[7:-3].strip()
+        try:
+            json_data = json.loads(candidate)
+            if isinstance(json_data, list):
+                return json.dumps({"files": json_data}), ""
+            elif isinstance(json_data, dict) and "files" in json_data:
+                return json.dumps(json_data), ""
+        except json.JSONDecodeError:
+            pass  # Fall through
 
-    # Try to parse as JSON
-    try:
-        json_data = json.loads(response)
-        if isinstance(json_data, list):
-            return json.dumps({"files": json_data}), extracted_message
-        elif isinstance(json_data, dict) and "files" in json_data:
-            return json.dumps(json_data), extracted_message
-        else:
-            # Not a recognized format; treat as message
-            return "", original_response
-    except json.JSONDecodeError:
-        # Fallback: find the largest valid JSON substring (e.g., embedded object)
-        match = re.search(r"(\{.*\}|\[.*\])", original_response, re.DOTALL)
-        if match:
-            try:
-                json_data = json.loads(match.group(1))
-                extracted_message = original_response.replace(
-                    match.group(1), ""
-                ).strip()
-                if isinstance(json_data, list):
-                    return json.dumps({"files": json_data}), extracted_message
-                elif isinstance(json_data, dict) and "files" in json_data:
-                    return json.dumps(json_data), extracted_message
-            except json.JSONDecodeError:
-                pass
-        # If no valid JSON, whole response is message
-        return "", original_response
+    # Find all ```json blocks and test from last to first
+    block_pattern = r"```json\s*(.*?)\s*```"
+    matches = list(re.finditer(block_pattern, original_response, re.DOTALL | re.IGNORECASE))
+    for match in reversed(matches):
+        candidate = match.group(1).strip()
+        try:
+            json_data = json.loads(candidate)
+            extracted_message = re.sub(re.escape(match.group(0)), "", original_response).strip()
+            if isinstance(json_data, list):
+                return json.dumps({"files": json_data}), extracted_message
+            elif isinstance(json_data, dict) and "files" in json_data:
+                return json.dumps(json_data), extracted_message
+            else:
+                # Valid JSON but unexpected structure; treat as message
+                return "", original_response
+        except json.JSONDecodeError:
+            continue  # Try previous (earlier) block
+
+    # Fallback: largest valid JSON substring (existing logic)
+    match = re.search(r"(\{.*\}|\[.*\])", original_response, re.DOTALL)
+    if match:
+        try:
+            json_data = json.loads(match.group(1))
+            extracted_message = original_response.replace(match.group(1), "").strip()
+            if isinstance(json_data, list):
+                return json.dumps({"files": json_data}), extracted_message
+            elif isinstance(json_data, dict) and "files" in json_data:
+                return json.dumps(json_data), extracted_message
+        except json.JSONDecodeError:
+            pass
+
+    # No valid JSON; whole response is message
+    return "", original_response
+
+
+
+# def postprocess_response(response: str) -> Tuple[str, str]:
+#     """Postprocess the response to extract/clean JSON and any message."""
+#     original_response = response.strip()
+#     extracted_message = ""
+
+#     # Check for markdown code block
+#     if original_response.startswith("```json") and original_response.endswith("```"):
+#         response = original_response[7:-3].strip()
+#     elif "```json" in original_response:
+#         # Extract the block if embedded
+#         match = re.search(r"```json\s*(.*?)\s*```", original_response, re.DOTALL)
+#         if match:
+#             extracted_message = original_response.replace(match.group(0), "").strip()
+#             response = match.group(1).strip()
+#         else:
+#             response = original_response
+#     else:
+#         response = original_response
+
+#     # Try to parse as JSON
+#     try:
+#         json_data = json.loads(response)
+#         if isinstance(json_data, list):
+#             return json.dumps({"files": json_data}), extracted_message
+#         elif isinstance(json_data, dict) and "files" in json_data:
+#             return json.dumps(json_data), extracted_message
+#         else:
+#             # Not a recognized format; treat as message
+#             return "", original_response
+#     except json.JSONDecodeError:
+#         # Fallback: find the largest valid JSON substring (e.g., embedded object)
+#         match = re.search(r"(\{.*\}|\[.*\])", original_response, re.DOTALL)
+#         if match:
+#             try:
+#                 json_data = json.loads(match.group(1))
+#                 extracted_message = original_response.replace(
+#                     match.group(1), ""
+#                 ).strip()
+#                 if isinstance(json_data, list):
+#                     return json.dumps({"files": json_data}), extracted_message
+#                 elif isinstance(json_data, dict) and "files" in json_data:
+#                     return json.dumps(json_data), extracted_message
+#             except json.JSONDecodeError:
+#                 pass
+#         # If no valid JSON, whole response is message
+#         return "", original_response
 
 
 def load_cached_codebase() -> List[dict]:
